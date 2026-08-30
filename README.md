@@ -126,15 +126,19 @@ session on Monday, Wednesday and Friday with rest on the other days. Edit `SeedD
 app/src/main/java/com/mreddy/liftz/
   LiftzApp.kt            Application, owns the DB + repository singletons (no DI framework)
   MainActivity.kt        Single activity hosting the Compose nav graph
-  data/db/               Room: Enums, Entities, Relations, Daos, Converters, LiftzDatabase
+  data/db/               Room: Enums, Entities, Relations, Daos, Converters, LiftzDatabase,
+                         Migrations (schema version + the migration chain)
   data/seed/             The starting routine
   data/repo/             LiftzRepository, the only thing the UI talks to
   data/json/             Portable format + Room<->JSON port
   domain/                Pure, testable: ProgressionEngine, TimeEstimator, DayCompletion
-  ui/                    theme, nav, calendar, workout, exercise, settings, common widgets
+  ui/                    theme, nav, calendar, workout, exercise, summary, settings, common
   widget/                Glance macro widget
-app/src/test/            JVM unit tests for the domain layer
-tools/engine_sim.py      Python port of the engine rules, used to verify them without a compiler
+app/schemas/             Room's exported schema JSON, one per version. Committed on purpose:
+                         it is the migration audit trail, not build output.
+app/src/test/            JVM unit tests for the domain layer and the migration chain
+tools/engine_sim.py      Second independent implementation of the engine rules. If it and the
+                         Kotlin disagree, one of them has a bug.
 mreddyliftz_export_template.json
 ```
 
@@ -155,11 +159,16 @@ mreddyliftz_export_template.json
 
 ## Next steps if you want to keep going
 
-1. Open in Android Studio, sync, fix whatever the compiler complains about, run on a device.
-2. Add a Room migration path before the first schema change.
-3. Sharpen the routine: set your real weekly split, or import a JSON file.
-4. Optional: per-set weight logging (currently one weight per session), exercise-level notes history,
-   and a "workout summary" screen after the last exercise.
+It compiles clean (`./gradlew :app:assembleDebug`, no warnings) and the domain layer is green:
+35 JVM unit tests plus 40 checks in `tools/engine_sim.py`. A Room migration path exists, and the
+post-workout summary screen is built. What is left:
+
+1. **Run it on a phone.** Nothing in this repo has ever been on a screen, and the v1 -> v2 Room
+   migration has never run against a real SQLite file. That is the main open verification gap.
+2. Sharpen the routine: set your real weekly split, or import a JSON file.
+3. Optional: per-set weight logging, exercise-level notes history, Compose UI tests.
+   Per-set weight is not the quick win it looks like — see the note in `HANDOFF.md`, because a
+   naive version reintroduces a progression bug that was already fixed once.
 ## License
 
 This repository is public for portfolio/viewing purposes only. All rights reserved — no permission is granted to use, modify, or distribute this code.
