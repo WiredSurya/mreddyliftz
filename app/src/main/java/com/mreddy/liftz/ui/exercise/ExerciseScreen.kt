@@ -26,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
@@ -34,7 +35,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -364,7 +364,7 @@ private fun SetRow(
 
             if (row.logged) {
                 IconButton(onClick = onUndo) {
-                    Icon(Icons.Filled.Undo, contentDescription = "Undo this set")
+                    Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo this set")
                 }
             } else {
                 IconButton(onClick = onComplete) {

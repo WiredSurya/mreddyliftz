@@ -13,6 +13,7 @@ import com.mreddy.liftz.data.db.RoutineDayEntity
 import com.mreddy.liftz.data.db.RoutineDayExerciseEntity
 import com.mreddy.liftz.data.db.SetLogEntity
 import com.mreddy.liftz.data.db.SetType
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
 
@@ -28,6 +29,8 @@ object JsonPort {
 
     enum class ImportMode { OVERWRITE, MERGE }
 
+    // prettyPrintIndent and explicitNulls are still marked experimental in kotlinx.serialization.
+    @OptIn(ExperimentalSerializationApi::class)
     val json = Json {
         prettyPrint = true
         prettyPrintIndent = "  "

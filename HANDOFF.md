@@ -27,6 +27,8 @@ Keep this file updated. Every completed piece = one git commit + one line in the
   - `./gradlew :app:testDebugUnitTest` -> **23/23 pass, 0 failures, 0 errors**
     (DayCompletionTest 5, ProgressionEngineTest 14, TimeEstimatorTest 4).
   - `python3 tools/engine_sim.py` -> **28/28 passed.**
+  - The two known warnings (JsonPort opt-in, deprecated `Icons.Filled.Undo`) are fixed, so a forced
+    `./gradlew :app:compileDebugKotlin --rerun` now emits **zero `w:` lines**. Keep it that way.
   The old "nothing has ever been compiled, expect import nits" caveat is obsolete. It compiles and
   the domain layer is green.
 - **Android SDK is at `/home/surz/Android/Sdk`, and `local.properties` is NOT in the repo** (it is
@@ -75,6 +77,7 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 | 12 | Glance widget (stretch) | [x] | Glance macro widget (Phase 2 stretch) and README |
 | 13 | README | [x] | Glance macro widget (Phase 2 stretch) and README |
 | 14 | Verification run: JVM unit tests + Python simulator | [x] | Verify domain layer: 23/23 unit tests and 28/28 engine_sim green |
+| 15 | Clear the two compiler warnings (serialization opt-in, mirrored Undo icon) | [x] | Clear the last two compiler warnings: build is now warning-clean |
 
 ## Next actions (in order)
 
