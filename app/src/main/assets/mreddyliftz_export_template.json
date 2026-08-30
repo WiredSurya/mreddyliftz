@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-30",
+  "app": "mreddyLiftz",
+
+  "_readme": [
+    "This is the portable format for mreddyLiftz. Settings > Routine data imports and exports it.",
+    "It is written to be readable by a human or by an AI session with zero prior context.",
+    "Only 'exercises' is really required; everything else falls back to sensible defaults.",
+    "type: bodyweight_progression (advance along 'levels') or weighted (advance current_weight_kg).",
+    "set_type: FIXED_REP (input pre-fills with goal reps) or TO_FAILURE (pre-fills with what you did last time).",
+    "hypertrophy_range: [min, max]. Hitting max on EVERY set for 'rolling_window' consecutive sessions",
+    "at the current level suggests moving up. The user always confirms; nothing auto-switches.",
+    "PRs are tracked per (exercise, level) pair, so dropping to an easier level compares against that level only.",
+    "set_plan is optional. Include it when sets are not uniform, like the pull-up below.",
+    "Keys starting with an underscore are comments and are ignored on import."
+  ],
+
+  "exercises": [
+    {
+      "id": "pull_up",
+      "name": "Pull-up",
+      "type": "bodyweight_progression",
+      "set_type": "FIXED_REP",
+      "hypertrophy_range": [8, 12],
+      "rolling_window": 6,
+      "planned_sets": 5,
+      "levels": [
+        "dead_hang",
+        "scapular_pull",
+        "negative",
+        "band_assisted",
+        "standard",
+        "weighted",
+        "archer"
+      ],
+      "current_level": "band_assisted",
+      "set_plan": [
+        { "set_index": 0, "set_type": "TO_FAILURE", "level": "standard", "label": "unassisted, to failure" },
+        { "set_index": 1, "set_type": "TO_FAILURE", "level": "standard", "label": "unassisted, to failure" },
+        { "set_index": 2, "set_type": "FIXED_REP", "goal_reps": 8, "level": "band_assisted", "label": "band assisted" },
+        { "set_index": 3, "set_type": "FIXED_REP", "goal_reps": 8, "level": "band_assisted", "label": "band assisted" },
+        { "set_index": 4, "set_type": "FIXED_REP", "goal_reps": 8, "level": "band_assisted", "label": "band assisted" }
+      ],
+      "rest_seconds_per_set": 120,
+      "form_description": "Dead hang start, shoulders packed down before the pull. Drive elbows to the ribs, chin clears the bar, control the negative for 2s.",
+      "notes": "5 sets: 2 unassisted to failure, then 3 band assisted at goal reps."
+    },
+    {
+      "id": "ring_dip",
+      "name": "Ring dip",
+      "type": "bodyweight_progression",
+      "set_type": "TO_FAILURE",
+      "hypertrophy_range": [8, 12],
+      "rolling_window": 6,
+      "planned_sets": 3,
+      "levels": ["support_hold", "negative", "band_assisted_full", "standard", "weighted"],
+      "current_level": "negative",
+      "rest_seconds_per_set": 120,
+      "form_description": "Rings turned out at the top, elbows tracking back not flared. Lower until shoulders sit just below the elbows.",
+      "notes": ""
+    },
+    {
+      "id": "standing_db_press",
+      "name": "Standing DB press",
+      "type": "weighted",
+      "set_type": "FIXED_REP",
+      "hypertrophy_range": [8, 12],
+      "rolling_window": 6,
+      "planned_sets": 3,
+      "current_weight_kg": 10,
+      "weight_increment_kg": 2,
+      "rest_seconds_per_set": 90,
+      "form_description": "Standing, not seated. Glutes and abs braced so the lower back does not arch.",
+      "notes": ""
+    },
+    {
+      "id": "single_leg_rdl",
+      "name": "Single-leg RDL",
+      "type": "weighted",
+      "set_type": "FIXED_REP",
+      "hypertrophy_range": [8, 12],
+      "rolling_window": 6,
+      "planned_sets": 3,
+      "current_weight_kg": 8,
+      "weight_increment_kg": 2,
+      "rest_seconds_per_set": 90,
+      "form_description": "Hinge from the hip, back leg and torso forming one line. Square the hips.",
+      "notes": "Reps are per side."
+    },
+    {
+      "id": "nordic_curl_negative",
+      "name": "Nordic curl negative",
+      "type": "bodyweight_progression",
+      "set_type": "TO_FAILURE",
+      "hypertrophy_range": [6, 10],
+      "rolling_window": 6,
+      "planned_sets": 3,
+      "levels": ["partial_rom", "full_rom_negative", "assisted_concentric", "full_nordic_curl"],
+      "current_level": "partial_rom",
+      "rest_seconds_per_set": 120,
+      "form_description": "Hips locked out with the glutes the whole way down, no piking. Resist as slowly as possible.",
+      "notes": ""
+    }
+  ],
+
+  "core_exercises": [
+    {
+      "id": "plank",
+      "name": "Plank",
+      "planned_sets": 3,
+      "rest_seconds_per_set": 45,
+      "form_description": "Ribs down, glutes on, neutral neck. Log seconds in the reps field.",
+      "notes": "Logged as seconds. Core work is not progression tracked."
+    },
+    {
+      "id": "hanging_knee_raise",
+      "name": "Hanging knee raise",
+      "planned_sets": 3,
+      "rest_seconds_per_set": 45,
+      "form_description": "No swing. Posterior pelvic tilt at the top, slow return.",
+      "notes": ""
+    },
+    {
+      "id": "side_plank",
+      "name": "Side plank",
+      "planned_sets": 2,
+      "rest_seconds_per_set": 45,
+      "form_description": "Stack the feet, hips high, log seconds per side.",
+      "notes": "Logged as seconds, per side."
+    }
+  ],
+
+  "goals": {
+    "water_ml": 3000,
+    "protein_g": 140,
+    "carbs_g": 250,
+    "calories": 2600
+  },
+
+  "increments": {
+    "water_ml": 250,
+    "protein_g": 10,
+    "carbs_g": 10
+  },
+
+  "routine_days": [
+    { "day_of_week": 1, "is_workout_day": true,  "name": "Full body A", "exercises": ["pull_up", "ring_dip", "standing_db_press", "single_leg_rdl", "nordic_curl_negative", "hanging_knee_raise", "plank"] },
+    { "day_of_week": 2, "is_workout_day": false, "name": "Rest", "exercises": [] },
+    { "day_of_week": 3, "is_workout_day": true,  "name": "Full body B", "exercises": ["pull_up", "ring_dip", "standing_db_press", "single_leg_rdl", "nordic_curl_negative", "hanging_knee_raise", "plank"] },
+    { "day_of_week": 4, "is_workout_day": false, "name": "Rest", "exercises": [] },
+    { "day_of_week": 5, "is_workout_day": true,  "name": "Full body C", "exercises": ["pull_up", "ring_dip", "standing_db_press", "single_leg_rdl", "nordic_curl_negative", "hanging_knee_raise", "plank"] },
+    { "day_of_week": 6, "is_workout_day": false, "name": "Rest", "exercises": [] },
+    { "day_of_week": 7, "is_workout_day": false, "name": "Rest", "exercises": [] }
+  ],
+
+  "daily_logs": [],
+  "sessions": []
+}
