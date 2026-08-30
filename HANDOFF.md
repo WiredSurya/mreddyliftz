@@ -48,23 +48,48 @@ app/src/test/java/...    JVM unit tests for the domain layer
 
 ## Status
 
-| # | Piece | State | Commit |
-|---|-------|-------|--------|
-| 1 | Gradle scaffold, manifest, resources, adaptive icon | [x] | `Scaffold Gradle/Compose Android project...` |
-| 2 | Room schema: enums, entities, relations, DAOs, database, seed | [x] | in HANDOFF commit |
-| 3 | Progression engine + time estimator + day completion (domain) | [x] | `Domain layer ... + LiftzRepository` |
-| 4 | Repository layer | [x] | `Domain layer ... + LiftzRepository` |
-| 5 | Compose theme + navigation skeleton | [ ] | |
-| 6 | Calendar screen | [ ] | |
-| 7 | Workout screen | [ ] | |
-| 8 | Exercise screen | [ ] | |
-| 9 | Settings screen | [ ] | |
-| 10 | JSON import/export + template file | [ ] | |
-| 11 | Unit tests for domain layer | [ ] | |
-| 12 | Glance widget (stretch) | [ ] | |
-| 13 | README | [ ] | |
+Phase 1 is COMPLETE, plus the Phase 2 widget stretch goal. Nothing has been compiled (no Android SDK
+in the authoring sandbox), so the remaining work is "open it, sync, fix compiler nits, run it".
 
-## Next actions
+| # | Piece | State | Commit message |
+|---|-------|-------|----------------|
+| 1 | Gradle scaffold, manifest, resources, adaptive icon | [x] | Scaffold Gradle/Compose Android project... |
+| 2 | Room schema: enums, entities, relations, DAOs, database, seed | [x] | Add HANDOFF resume log... (files landed in this commit) |
+| 3 | Progression engine + time estimator + day completion | [x] | Domain layer... + LiftzRepository |
+| 4 | Repository layer | [x] | Domain layer... + LiftzRepository |
+| 5 | Compose theme + navigation skeleton | [x] | Compose theme, navigation skeleton, MainActivity... |
+| 6 | Calendar screen (green fill + crown reveal) | [x] | ...and calendar screen with proportional green fill |
+| 7 | Workout / day screen (queue, progress, ETA, macros) | [x] | Workout/day screen: Spotify-style exercise queue... |
+| 8 | Exercise screen (ring, confetti, haptic, rest timer) | [x] | Exercise screen: record/level header... |
+| 9 | Settings screen | [x] | JSON import/export: portable schema... |
+| 10 | JSON import/export + template file | [x] | JSON import/export: portable schema... |
+| 11 | Unit tests for domain layer + Python rule simulator | [x] | JVM unit tests... (28/28 green in the simulator) |
+| 12 | Glance widget (stretch) | [x] | Glance macro widget (Phase 2 stretch) and README |
+| 13 | README | [x] | Glance macro widget (Phase 2 stretch) and README |
 
-- [ ] (see Status table — do the topmost `[ ]` row)
+## Next actions (in order)
 
+- [ ] Open in Android Studio, let Gradle sync, fix any compiler complaints. Nothing here has ever
+      been compiled, so expect a few import or API-signature nits. Start with:
+      `./gradlew :app:assembleDebug` and work down the error list.
+- [ ] Run `./gradlew :app:testDebugUnitTest` — the domain tests should pass with no device.
+      `python3 tools/engine_sim.py` proves the same rules independently (28/28).
+- [ ] Install on a phone over USB. Do NOT bother with an emulator on an 8GB machine.
+- [ ] Set your real weekly split: edit `SeedData.routineDays` / `routineDayExercises`, or import a
+      JSON file with your own `routine_days`. Current seed assumes full body Mon/Wed/Fri.
+- [ ] Add a Room migration before you ever change an entity on a phone that already holds data.
+      Schema is version 1 with no migrations written.
+- [ ] Optional polish: per-set weight logging, a post-workout summary screen, Compose UI tests.
+
+## Gotchas a fresh session should know
+
+- Do NOT add Firebase, a backend, or any network call. Explicitly out of scope.
+- Room is the ONLY source of truth. The Glance widget writes the same tables; nothing is cached.
+- The progression engine (`domain/ProgressionEngine.kt`) has zero Android/Room imports on purpose.
+  Keep it that way so it stays unit-testable on the JVM.
+- PRs are per `(exercise, level)` pair, never global per exercise. That is load bearing for the
+  "regress after missed workouts" behaviour.
+- Rep increment is fixed at 1 and must NOT become a setting.
+- Calendar denominators (5 workout / 4 rest) come from the routine plan upfront, not from what got
+  logged. `daily_logs.isWorkoutDay` is written when the day is first touched.
+- Do not configure a git remote or push. Local repo only, by request.
