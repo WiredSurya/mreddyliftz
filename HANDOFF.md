@@ -27,6 +27,8 @@ Keep this file updated. Every completed piece = one git commit + one line in the
   - `./gradlew :app:testDebugUnitTest` -> **23/23 pass, 0 failures, 0 errors**
     (DayCompletionTest 5, ProgressionEngineTest 14, TimeEstimatorTest 4).
   - `python3 tools/engine_sim.py` -> **28/28 passed.**
+  - `MigrationsTest` (4 cases) was added with the migration scaffold, so the unit-test total is
+    now **27/27 green**.
   - The two known warnings (JsonPort opt-in, deprecated `Icons.Filled.Undo`) are fixed, so a forced
     `./gradlew :app:compileDebugKotlin --rerun` now emits **zero `w:` lines**. Keep it that way.
   The old "nothing has ever been compiled, expect import nits" caveat is obsolete. It compiles and
@@ -78,6 +80,7 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 | 13 | README | [x] | Glance macro widget (Phase 2 stretch) and README |
 | 14 | Verification run: JVM unit tests + Python simulator | [x] | Verify domain layer: 23/23 unit tests and 28/28 engine_sim green |
 | 15 | Clear the two compiler warnings (serialization opt-in, mirrored Undo icon) | [x] | Clear the last two compiler warnings: build is now warning-clean |
+| 16 | Room migration scaffold + version/chain guard test | [x] | Room migration scaffold so a future schema change cannot wipe the training log |
 
 ## Next actions (in order)
 
@@ -88,8 +91,12 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 - [ ] Install on a phone over USB. Do NOT bother with an emulator on an 8GB machine.
 - [ ] Set your real weekly split: edit `SeedData.routineDays` / `routineDayExercises`, or import a
       JSON file with your own `routine_days`. Current seed assumes full body Mon/Wed/Fri.
-- [ ] Add a Room migration before you ever change an entity on a phone that already holds data.
-      Schema is version 1 with no migrations written.
+- [x] Room migration path. DONE — see `data/db/Migrations.kt`. There is still nothing to migrate
+      (version 1 is the first release), but the scaffolding is in place, so the next entity change
+      is a two-line edit instead of a data-loss incident. To change an entity now:
+      bump `Migrations.SCHEMA_VERSION`, append a `MIGRATION_N_N+1` to `Migrations.ALL`, rebuild,
+      and commit the newly generated `app/schemas/<db>/<version>.json`. `MigrationsTest` fails the
+      build if you bump the version and forget the migration.
 - [ ] Optional polish: per-set weight logging, a post-workout summary screen, Compose UI tests.
 
 ## Gotchas a fresh session should know
@@ -98,6 +105,13 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 - Room is the ONLY source of truth. The Glance widget writes the same tables; nothing is cached.
 - The progression engine (`domain/ProgressionEngine.kt`) has zero Android/Room imports on purpose.
   Keep it that way so it stays unit-testable on the JVM.
+- **Never add `fallbackToDestructiveMigration()` to the Room builder.** It is the one-line "fix"
+  Android Studio and most StackOverflow answers suggest when a schema change crashes on open, and
+  it deletes every row in the database. This DB is the only copy of the training history that
+  exists anywhere — no backend, no cloud. A crash on open is recoverable; a wipe is not. Write the
+  migration instead. `data/db/Migrations.kt` documents how.
+- `app/schemas/**` is committed on purpose. It is the migration audit trail, not build output —
+  do not add it to `.gitignore`.
 - PRs are per `(exercise, level)` pair, never global per exercise. That is load bearing for the
   "regress after missed workouts" behaviour.
 - Rep increment is fixed at 1 and must NOT become a setting.

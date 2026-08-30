@@ -26,7 +26,9 @@ import kotlinx.coroutines.launch
         IncrementsEntity::class,
         ProgressionSuggestionEntity::class
     ],
-    version = 1,
+    // Single source of truth for the version lives in Migrations.SCHEMA_VERSION so that the
+    // number here and the migration chain can never drift apart. See Migrations.kt.
+    version = Migrations.SCHEMA_VERSION,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -54,14 +56,20 @@ abstract class LiftzDatabase : RoomDatabase() {
                 context.applicationContext,
                 LiftzDatabase::class.java,
                 "mreddyliftz.db"
-            ).addCallback(object : Callback() {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                    super.onCreate(db)
-                    // INSTANCE is assigned by get() before any DAO call can happen, and
-                    // onCreate fires lazily on first real DB access, so this is safe.
-                    seedScope.launch { INSTANCE?.let { SeedData.seed(it) } }
-                }
-            })
+            )
+                // Every schema change must ship a Migration. There is deliberately NO
+                // fallbackToDestructiveMigration() here: this database is the only copy of the
+                // training history that exists anywhere, so Room should throw on a missing
+                // migration rather than quietly delete it. See Migrations.kt.
+                .addMigrations(*Migrations.ALL)
+                .addCallback(object : Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        // INSTANCE is assigned by get() before any DAO call can happen, and
+                        // onCreate fires lazily on first real DB access, so this is safe.
+                        seedScope.launch { INSTANCE?.let { SeedData.seed(it) } }
+                    }
+                })
             return builder.build()
         }
     }
