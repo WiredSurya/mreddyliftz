@@ -27,6 +27,7 @@ Keep this file updated. Every completed piece = one git commit + one line in the
   - `./gradlew :app:testDebugUnitTest` -> **23/23 pass, 0 failures, 0 errors**
     (DayCompletionTest 5, ProgressionEngineTest 14, TimeEstimatorTest 4).
   - `python3 tools/engine_sim.py` -> **28/28 passed.**
+  - A full `--rerun-tasks` clean rebuild is warning-free and green end to end.
   - `MigrationsTest` (4 cases) and 8 new mixed-rung / weighted-rung cases were added, so the totals
     are now **35/35 Kotlin unit tests** and **40/40 in `engine_sim.py`**.
   - The two known warnings (JsonPort opt-in, deprecated `Icons.Filled.Undo`) are fixed, so a forced
@@ -53,7 +54,7 @@ app/src/main/java/com/mreddy/liftz/
                            ProgressionEngine.kt  the if-statement adaptive engine
                            TimeEstimator.kt      rolling-window time to completion
                            DayCompletion.kt      calendar green-fill maths (4 or 5 denominator)
-  ui/                    theme/, nav/, calendar/, workout/, exercise/, settings/, common/
+  ui/                    theme/, nav/, calendar/, workout/, exercise/, summary/, settings/, common/
   widget/                Phase 2 Glance widget
 app/src/test/java/...    JVM unit tests for the domain layer
 ```
@@ -82,6 +83,7 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 | 15 | Clear the two compiler warnings (serialization opt-in, mirrored Undo icon) | [x] | Clear the last two compiler warnings: build is now warning-clean |
 | 16 | Room migration scaffold + version/chain guard test | [x] | Room migration scaffold so a future schema change cannot wipe the training log |
 | 17 | Domain-layer audit against the spec; per-set rung attribution fix | [x] | Fix per-(exercise,level) tracking for mixed-rung sessions: pull-up could never progress |
+| 18 | Post-workout summary screen (optional polish) | [x] | Post-workout summary screen |
 
 ## Next actions (in order)
 
@@ -106,7 +108,16 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
       schema-JSON level: the ALTER TABLE matches the column Room generated in
       `app/schemas/.../2.json` exactly, and `MigrationsTest` proves the chain reaches version 2.
       It has never actually run against a real SQLite file. That is the one open verification gap.
-- [ ] Optional polish: per-set weight logging, a post-workout summary screen, Compose UI tests.
+- [ ] Optional polish still on the table: per-set weight logging, Compose UI tests.
+      The post-workout summary screen is DONE (`ui/summary/`, reached from the card at the bottom
+      of the workout screen). Per-set weight logging was deliberately NOT started: `set_logs`
+      already has a per-set `weightKg` column, but making it editable per set means the load stops
+      being constant within a session, and `evaluateWeighted` currently filters history on the
+      SESSION's weight. Doing it properly means making weight a per-set rung the way `levelKey`
+      now is. That is a real design change, not a UI tweak — do not do it as a quick win, or you
+      will reintroduce the exact bug that commit 9e62919 fixed.
+- [ ] The summary screen has never been seen on a screen — no device that night. It compiles and
+      the read model is exercised by the type checker only. Expect to nudge spacing/colours.
 
 ## Gotchas a fresh session should know
 

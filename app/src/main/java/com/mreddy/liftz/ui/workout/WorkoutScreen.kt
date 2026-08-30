@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
@@ -62,6 +63,7 @@ import java.time.format.DateTimeFormatter
 fun WorkoutScreen(
     date: LocalDate,
     onExerciseClick: (String) -> Unit,
+    onSummaryClick: () -> Unit,
     onBack: () -> Unit,
     viewModel: WorkoutViewModel = viewModel(
         key = "workout-${date.toEpochDay()}",
@@ -165,6 +167,39 @@ fun WorkoutScreen(
         /* ---- the queue ---- */
         items(state.rows, key = { it.plan.exercise.id }) { row ->
             QueueRowCard(row = row, onClick = { onExerciseClick(row.plan.exercise.id) })
+        }
+
+        /* ---- post-workout summary ---- */
+        if (state.rows.isNotEmpty()) {
+            item {
+                val allDone = state.rows.all { it.state == QueueState.COMPLETED }
+                Card(onClick = onSummaryClick, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (allDone) "Workout complete" else "Workout summary",
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (allDone) LiftzGreen
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                if (allDone) "See what the session added up to"
+                                else "See how the day is going so far",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
 
         if (state.rows.isEmpty()) {

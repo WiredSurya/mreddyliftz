@@ -453,4 +453,93 @@ class LiftzRepository(private val db: LiftzDatabase) {
             )
         }
     }
+
+    /* ---------------------------------------------------------------------------------------
+     * POST-WORKOUT SUMMARY
+     * ------------------------------------------------------------------------------------- */
+
+    /**
+     * What one training day actually amounted to, for the summary screen.
+     *
+     * Read-only: it reports history, it never writes or re-evaluates anything. A PR here means
+     * "the best set of this session beat every earlier session AT THE SAME RUNG", which is the
+     * same per-(exercise, level) comparison the engine uses — a set at an easier rung is not a PR
+     * just because the number is bigger.
+     */
+    suspend fun daySummary(date: LocalDate): DaySummary {
+        val planned = exerciseDao.getForDay(date.dayOfWeek.value)
+        val sessions = sessionDao.getSessionsForDay(date.toEpochDay())
+            .associateBy { it.session.exerciseId }
+
+        val lines = planned.map { ewp ->
+            val e = ewp.exercise
+            val s = sessions[e.id]
+            val sets = s?.orderedSets.orEmpty()
+
+            // Earlier sessions at the same rung, so a PR is judged against comparable work only.
+            val levelKey = s?.session?.levelKey ?: e.currentLevelKey
+            val previousBest = historyFor(e.id, limit = 200)
+                .filter { it.epochDay < date.toEpochDay() }
+                .let { ProgressionEngine.personalRecordAtLevel(it, levelKey, e.currentWeightKg) }
+            val bestThisSession = sets
+                .filter { it.levelKey == levelKey || levelKey == null }
+                .maxOfOrNull { it.reps }
+
+            DaySummaryLine(
+                exerciseId = e.id,
+                name = e.name,
+                levelLabel = ewp.currentLevel?.displayName,
+                weightKg = s?.session?.weightKg ?: e.currentWeightKg,
+                completed = s?.session?.completed == true,
+                setsLogged = sets.size,
+                setsPlanned = e.plannedSets,
+                totalReps = sets.sumOf { it.reps },
+                topReps = sets.maxOfOrNull { it.reps } ?: 0,
+                // Only a PR if there is something to beat: a brand new rung is its own baseline,
+                // not an instant record.
+                isPersonalRecord = bestThisSession != null && previousBest != null &&
+                    bestThisSession > previousBest,
+                seconds = s?.session?.let {
+                    ((it.finishedAtMs - it.startedAtMs) / 1000L).toInt().coerceAtLeast(0)
+                } ?: 0,
+                restSeconds = s?.session?.totalRestSeconds ?: 0,
+                pendingSuggestion = suggestionDao.pendingFor(e.id)
+            )
+        }
+
+        return DaySummary(
+            date = date,
+            lines = lines,
+            allComplete = lines.isNotEmpty() && lines.all { it.completed }
+        )
+    }
+
+    data class DaySummary(
+        val date: LocalDate,
+        val lines: List<DaySummaryLine>,
+        val allComplete: Boolean
+    ) {
+        val exercisesCompleted: Int get() = lines.count { it.completed }
+        val totalSets: Int get() = lines.sumOf { it.setsLogged }
+        val totalReps: Int get() = lines.sumOf { it.totalReps }
+        val totalSeconds: Int get() = lines.sumOf { it.seconds }
+        val totalRestSeconds: Int get() = lines.sumOf { it.restSeconds }
+        val personalRecords: List<DaySummaryLine> get() = lines.filter { it.isPersonalRecord }
+    }
+
+    data class DaySummaryLine(
+        val exerciseId: String,
+        val name: String,
+        val levelLabel: String?,
+        val weightKg: Double?,
+        val completed: Boolean,
+        val setsLogged: Int,
+        val setsPlanned: Int,
+        val totalReps: Int,
+        val topReps: Int,
+        val isPersonalRecord: Boolean,
+        val seconds: Int,
+        val restSeconds: Int,
+        val pendingSuggestion: ProgressionSuggestionEntity?
+    )
 }

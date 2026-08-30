@@ -23,6 +23,7 @@ import androidx.navigation.navArgument
 import com.mreddy.liftz.ui.calendar.CalendarScreen
 import com.mreddy.liftz.ui.exercise.ExerciseScreen
 import com.mreddy.liftz.ui.settings.SettingsScreen
+import com.mreddy.liftz.ui.summary.SummaryScreen
 import com.mreddy.liftz.ui.workout.WorkoutScreen
 import java.time.LocalDate
 
@@ -36,6 +37,9 @@ object Routes {
 
     const val EXERCISE = "exercise/{exerciseId}/{epochDay}"
     fun exercise(exerciseId: String, epochDay: Long) = "exercise/$exerciseId/$epochDay"
+
+    const val SUMMARY = "summary/{epochDay}"
+    fun summary(epochDay: Long) = "summary/$epochDay"
 }
 
 private data class BottomItem(
@@ -100,7 +104,21 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                     onExerciseClick = { exerciseId ->
                         navController.navigate(Routes.exercise(exerciseId, epochDay))
                     },
+                    onSummaryClick = { navController.navigate(Routes.summary(epochDay)) },
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Routes.SUMMARY,
+                arguments = listOf(navArgument("epochDay") { type = NavType.LongType })
+            ) { entry ->
+                val epochDay = entry.arguments?.getLong("epochDay") ?: today.toEpochDay()
+                SummaryScreen(
+                    date = LocalDate.ofEpochDay(epochDay),
+                    onBack = { navController.popBackStack() },
+                    onExerciseClick = { exerciseId ->
+                        navController.navigate(Routes.exercise(exerciseId, epochDay))
+                    }
                 )
             }
             composable(
