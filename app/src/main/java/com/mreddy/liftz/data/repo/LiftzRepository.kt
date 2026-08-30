@@ -209,6 +209,19 @@ class LiftzRepository(private val db: LiftzDatabase) {
         )
     }
 
+    /** Remove a logged set (the undo button on the exercise screen). */
+    suspend fun undoSet(sessionId: Long, setIndex: Int) = sessionDao.deleteSet(sessionId, setIndex)
+
+    /**
+     * Reps already logged for today's session, keyed by set index.
+     * Lets the exercise screen restore state if you back out and come back mid-workout.
+     */
+    suspend fun exerciseContextLoggedReps(exerciseId: String, date: LocalDate): Map<Int, Int> =
+        sessionDao.getSession(exerciseId, date.toEpochDay())
+            ?.orderedSets
+            ?.associate { it.setIndex to it.reps }
+            ?: emptyMap()
+
     /**
      * Close out an exercise: mark the session complete, roll the day's workout flag if every
      * planned exercise is now done, and evaluate the progression engine.
