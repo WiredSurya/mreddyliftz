@@ -155,7 +155,10 @@ class ExerciseViewModel(
             setIndex = setIndex,
             reps = row.reps,
             weightKg = _state.value.currentWeightKg,
-            setType = row.plannedSet.setType
+            setType = row.plannedSet.setType,
+            // Record the rung this set was actually done at, not just the exercise's current one:
+            // pull-up's unassisted sets override to "standard" while the rest are band assisted.
+            levelKey = row.plannedSet.levelKeyOverride ?: _state.value.currentLevelKey
         )
         val rows = _state.value.rows.mapIndexed { i, r ->
             if (i == setIndex) r.copy(logged = true) else r

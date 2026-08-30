@@ -27,8 +27,8 @@ Keep this file updated. Every completed piece = one git commit + one line in the
   - `./gradlew :app:testDebugUnitTest` -> **23/23 pass, 0 failures, 0 errors**
     (DayCompletionTest 5, ProgressionEngineTest 14, TimeEstimatorTest 4).
   - `python3 tools/engine_sim.py` -> **28/28 passed.**
-  - `MigrationsTest` (4 cases) was added with the migration scaffold, so the unit-test total is
-    now **27/27 green**.
+  - `MigrationsTest` (4 cases) and 8 new mixed-rung / weighted-rung cases were added, so the totals
+    are now **35/35 Kotlin unit tests** and **40/40 in `engine_sim.py`**.
   - The two known warnings (JsonPort opt-in, deprecated `Icons.Filled.Undo`) are fixed, so a forced
     `./gradlew :app:compileDebugKotlin --rerun` now emits **zero `w:` lines**. Keep it that way.
   The old "nothing has ever been compiled, expect import nits" caveat is obsolete. It compiles and
@@ -81,6 +81,7 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 | 14 | Verification run: JVM unit tests + Python simulator | [x] | Verify domain layer: 23/23 unit tests and 28/28 engine_sim green |
 | 15 | Clear the two compiler warnings (serialization opt-in, mirrored Undo icon) | [x] | Clear the last two compiler warnings: build is now warning-clean |
 | 16 | Room migration scaffold + version/chain guard test | [x] | Room migration scaffold so a future schema change cannot wipe the training log |
+| 17 | Domain-layer audit against the spec; per-set rung attribution fix | [x] | Fix per-(exercise,level) tracking for mixed-rung sessions: pull-up could never progress |
 
 ## Next actions (in order)
 
@@ -97,6 +98,14 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
       bump `Migrations.SCHEMA_VERSION`, append a `MIGRATION_N_N+1` to `Migrations.ALL`, rebuild,
       and commit the newly generated `app/schemas/<db>/<version>.json`. `MigrationsTest` fails the
       build if you bump the version and forget the migration.
+- [x] Audit the domain layer against the spec. DONE, and it found a real bug — see the
+      per-set-rung note under Gotchas. `DayCompletion` (5 vs 4 denominator) and `TimeEstimator`
+      both matched the spec exactly and needed no change.
+- [ ] Install on a phone over USB and confirm the v1 -> v2 migration runs clean. No device was
+      attached the night this was written, so the migration is verified only at the code and
+      schema-JSON level: the ALTER TABLE matches the column Room generated in
+      `app/schemas/.../2.json` exactly, and `MigrationsTest` proves the chain reaches version 2.
+      It has never actually run against a real SQLite file. That is the one open verification gap.
 - [ ] Optional polish: per-set weight logging, a post-workout summary screen, Compose UI tests.
 
 ## Gotchas a fresh session should know
@@ -114,6 +123,19 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
   do not add it to `.gitignore`.
 - PRs are per `(exercise, level)` pair, never global per exercise. That is load bearing for the
   "regress after missed workouts" behaviour.
+- **A session can mix rungs, so the rung lives on the SET, not just the session.** The seeded
+  pull-up does sets 0-1 unassisted at `standard` and sets 2-4 at `band_assisted` in one session.
+  Originally every set inherited the session's level, which meant a 4-rep unassisted set counted
+  as a band-assisted set: `sessionQualifies` takes the MINIMUM across the sets being judged, so
+  pull-up's minimum was always the unassisted set and **pull-up could never progress, ever**. Its
+  displayed PR was polluted the same way. Fixed by `set_logs.levelKey` (schema v2) plus
+  `SessionSummary.setsAt(level)`. If you add another mixed-rung exercise, set `levelKeyOverride`
+  on its planned sets and this all keeps working.
+- For a WEIGHTED exercise the load IS the rung: PR and baseline group by `weightKg`, exactly as
+  `evaluateWeighted` already refused to count lighter sessions toward a jump. A 10 kg PR is not a
+  12 kg PR.
+- `tools/engine_sim.py` is a second independent implementation of the same rules. Change one, change
+  the other — if they disagree, one of them is wrong. That is the whole point of it.
 - Rep increment is fixed at 1 and must NOT become a setting.
 - Calendar denominators (5 workout / 4 rest) come from the routine plan upfront, not from what got
   logged. `daily_logs.isWorkoutDay` is written when the day is first touched.

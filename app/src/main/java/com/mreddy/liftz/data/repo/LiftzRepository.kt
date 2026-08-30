@@ -194,7 +194,9 @@ class LiftzRepository(private val db: LiftzDatabase) {
         setIndex: Int,
         reps: Int,
         weightKg: Double?,
-        setType: SetType
+        setType: SetType,
+        /** The rung this set was actually done at: the planned set's override, else the current level. */
+        levelKey: String? = null
     ) {
         sessionDao.deleteSet(sessionId, setIndex)
         sessionDao.insertSet(
@@ -203,6 +205,7 @@ class LiftzRepository(private val db: LiftzDatabase) {
                 setIndex = setIndex,
                 reps = reps.coerceAtLeast(0),
                 weightKg = weightKg,
+                levelKey = levelKey,
                 setType = setType,
                 loggedAtMs = System.currentTimeMillis()
             )
@@ -271,7 +274,15 @@ class LiftzRepository(private val db: LiftzDatabase) {
                 epochDay = s.session.epochDay,
                 levelKey = s.session.levelKey,
                 weightKg = s.session.weightKg,
-                reps = s.orderedSets.map { it.reps }
+                sets = s.orderedSets.map { set ->
+                    ProgressionEngine.LoggedSet(
+                        setIndex = set.setIndex,
+                        reps = set.reps,
+                        // Rows written before schema v2 have no per-set level; fall back to the
+                        // session's, which is what they were logged under.
+                        levelKey = set.levelKey ?: s.session.levelKey
+                    )
+                }
             )
         }
 
@@ -385,7 +396,8 @@ class LiftzRepository(private val db: LiftzDatabase) {
                 goalReps = ps.goalReps,
                 history = history,
                 levelKey = ps.levelKeyOverride ?: levelKey,
-                hypertrophyMin = e.hypertrophyMin
+                hypertrophyMin = e.hypertrophyMin,
+                weightKg = e.currentWeightKg
             )
         }
 
@@ -399,8 +411,12 @@ class LiftzRepository(private val db: LiftzDatabase) {
         return ExerciseContext(
             plan = plan,
             defaultRepsPerSet = defaults,
-            personalRecord = ProgressionEngine.personalRecordAtLevel(history, levelKey),
-            lastSessionTopReps = ProgressionEngine.baselineAtLevel(history, levelKey),
+            // weightKg only bites when there is no ladder, i.e. WEIGHTED exercises, where the
+            // load is the rung: a 10 kg PR must not be shown as the record at 12 kg.
+            personalRecord =
+                ProgressionEngine.personalRecordAtLevel(history, levelKey, e.currentWeightKg),
+            lastSessionTopReps =
+                ProgressionEngine.baselineAtLevel(history, levelKey, e.currentWeightKg),
             outcome = ProgressionEngine.evaluate(
                 snapshot(e, plan.orderedLevels.map { it.levelKey }), history
             ),

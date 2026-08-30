@@ -46,7 +46,7 @@ class ProgressionEngineTest {
         weight: Double? = null,
         startDay: Long = 1000
     ) = (0 until count).map {
-        SessionSummary(startDay - it, level, weight, reps)
+        SessionSummary.uniform(startDay - it, level, weight, reps)
     }
 
     /* ------------------------------- Case A: ladder ------------------------------- */
@@ -72,7 +72,7 @@ class ProgressionEngineTest {
     @Test
     fun `one weak set inside the window breaks the streak`() {
         // Newest session has a set at 11: the whole session fails to qualify.
-        val history = listOf(SessionSummary(1000, "band_assisted", null, listOf(12, 12, 11))) +
+        val history = listOf(SessionSummary.uniform(1000, "band_assisted", null, listOf(12, 12, 11))) +
             sessions(6, listOf(12, 12, 12), level = "band_assisted", startDay = 999)
         val outcome = ProgressionEngine.evaluate(pullUp, history)
         assertTrue(outcome is ProgressionEngine.Outcome.Hold)
@@ -138,9 +138,9 @@ class ProgressionEngineTest {
     @Test
     fun `PR and baseline are per exercise-level pair`() {
         val history = listOf(
-            SessionSummary(1000, "band_assisted", null, listOf(9, 8, 8)),
-            SessionSummary(999, "band_assisted", null, listOf(11, 10, 9)),
-            SessionSummary(998, "negative", null, listOf(15, 14, 14))
+            SessionSummary.uniform(1000, "band_assisted", null, listOf(9, 8, 8)),
+            SessionSummary.uniform(999, "band_assisted", null, listOf(11, 10, 9)),
+            SessionSummary.uniform(998, "negative", null, listOf(15, 14, 14))
         )
         assertEquals(11, ProgressionEngine.personalRecordAtLevel(history, "band_assisted"))
         assertEquals(15, ProgressionEngine.personalRecordAtLevel(history, "negative"))
@@ -169,8 +169,8 @@ class ProgressionEngineTest {
     @Test
     fun `to failure sets pre-fill with the same set index from the last session of this exercise`() {
         val history = listOf(
-            SessionSummary(1000, "negative", null, listOf(7, 6, 5)),
-            SessionSummary(999, "negative", null, listOf(4, 4, 4))
+            SessionSummary.uniform(1000, "negative", null, listOf(7, 6, 5)),
+            SessionSummary.uniform(999, "negative", null, listOf(4, 4, 4))
         )
         assertEquals(6, ProgressionEngine.defaultRepsForSet(
             setIndex = 1, isFixedRep = false, goalReps = 0,
@@ -184,5 +184,114 @@ class ProgressionEngineTest {
             setIndex = 0, isFixedRep = false, goalReps = 0,
             history = emptyList(), levelKey = "full_nordic_curl", hypertrophyMin = 6
         ))
+    }
+
+    /* =====================================================================================
+     * MIXED-RUNG SESSIONS
+     *
+     * The seeded pull-up logs sets 0-1 unassisted at "standard" and sets 2-4 at "band_assisted"
+     * in one session. Before per-set level attribution existed, all five were credited to the
+     * session's level, so a 4-rep unassisted set held the session minimum below hypertrophyMax
+     * forever and pull-up could never progress. These lock that shut.
+     * ================================================================================== */
+
+    /** The real seeded shape: two hard unassisted sets, then three band-assisted ones. */
+    private fun pullUpSession(day: Long, unassisted: List<Int>, banded: List<Int>) =
+        SessionSummary(
+            epochDay = day,
+            levelKey = "band_assisted",
+            weightKg = null,
+            sets = unassisted.mapIndexed { i, r ->
+                ProgressionEngine.LoggedSet(i, r, "standard")
+            } + banded.mapIndexed { i, r ->
+                ProgressionEngine.LoggedSet(unassisted.size + i, r, "band_assisted")
+            }
+        )
+
+    @Test
+    fun `unassisted sets do not block band assisted progression`() {
+        // Every band-assisted set is at the top of the range; the unassisted ones never will be.
+        val history = (0 until 6).map { pullUpSession(1000L - it, listOf(4, 3), listOf(12, 12, 12)) }
+        val outcome = ProgressionEngine.evaluate(pullUp, history)
+        assertTrue(
+            "Six qualifying band-assisted sessions should advance the ladder, but got $outcome. " +
+                "A low unassisted set at a DIFFERENT rung must not count against this one.",
+            outcome is ProgressionEngine.Outcome.AdvanceLevel
+        )
+        assertEquals("standard", (outcome as ProgressionEngine.Outcome.AdvanceLevel).toLevelKey)
+    }
+
+    @Test
+    fun `a weak band assisted set still blocks progression`() {
+        // Same shape, but one banded set falls short. The rung being evaluated must still fail.
+        val history = (0 until 6).map { pullUpSession(1000L - it, listOf(4, 3), listOf(12, 11, 12)) }
+        assertTrue(ProgressionEngine.evaluate(pullUp, history) is ProgressionEngine.Outcome.Hold)
+    }
+
+    @Test
+    fun `PR does not leak across rungs inside one session`() {
+        val history = listOf(pullUpSession(1000, listOf(6, 5), listOf(12, 11, 10)))
+        assertEquals(
+            "Band-assisted PR must come from the band-assisted sets only",
+            12, ProgressionEngine.personalRecordAtLevel(history, "band_assisted")
+        )
+        assertEquals(
+            "Unassisted PR must come from the standard-level sets only",
+            6, ProgressionEngine.personalRecordAtLevel(history, "standard")
+        )
+    }
+
+    @Test
+    fun `baseline reads only the sets at the rung asked for`() {
+        val history = listOf(pullUpSession(1000, listOf(6, 5), listOf(9, 9, 8)))
+        assertEquals(9, ProgressionEngine.baselineAtLevel(history, "band_assisted"))
+        assertEquals(6, ProgressionEngine.baselineAtLevel(history, "standard"))
+    }
+
+    @Test
+    fun `TO_FAILURE prefill matches the stored set index at the same rung`() {
+        val history = listOf(pullUpSession(1000, listOf(6, 5), listOf(9, 9, 8)))
+        // Set 1 is the second unassisted set -> 5, not the second element of the whole session.
+        assertEquals(
+            5,
+            ProgressionEngine.defaultRepsForSet(
+                setIndex = 1, isFixedRep = false, goalReps = 0,
+                history = history, levelKey = "standard", hypertrophyMin = 8
+            )
+        )
+    }
+
+    /* =====================================================================================
+     * WEIGHTED EXERCISES: the load IS the rung
+     * ================================================================================== */
+
+    @Test
+    fun `weighted PR does not leak across loads`() {
+        val history = sessions(1, listOf(12, 12, 12), weight = 10.0, startDay = 1000) +
+            sessions(1, listOf(8, 8, 7), weight = 12.0, startDay = 999)
+        assertEquals(
+            "12 kg PR must not report the easier 10 kg session's 12 reps",
+            8, ProgressionEngine.personalRecordAtLevel(history, null, weightKg = 12.0)
+        )
+        assertEquals(
+            12, ProgressionEngine.personalRecordAtLevel(history, null, weightKg = 10.0)
+        )
+    }
+
+    @Test
+    fun `dropping back to a lighter load reads that load's own history`() {
+        val history = sessions(1, listOf(6, 6, 5), weight = 12.0, startDay = 1000) +
+            sessions(1, listOf(11, 10, 10), weight = 10.0, startDay = 999)
+        assertEquals(
+            "Regressing to 10 kg must compare against 10 kg history, mirroring the ladder rule",
+            11, ProgressionEngine.baselineAtLevel(history, null, weightKg = 10.0)
+        )
+    }
+
+    @Test
+    fun `a load with no history has no PR or baseline`() {
+        val history = sessions(3, listOf(12, 12, 12), weight = 10.0)
+        assertNull(ProgressionEngine.personalRecordAtLevel(history, null, weightKg = 14.0))
+        assertNull(ProgressionEngine.baselineAtLevel(history, null, weightKg = 14.0))
     }
 }

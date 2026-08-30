@@ -29,19 +29,61 @@ object ProgressionEngine {
      * INPUT TYPES  (deliberately dumb: no Room types, no Android types)
      * ------------------------------------------------------------------------------------- */
 
+    /**
+     * One logged set: how many reps, and which rung it was ACTUALLY performed at.
+     *
+     * The level lives on the set, not only on the session, because a session can legitimately mix
+     * rungs. The seeded pull-up is exactly that: sets 0-1 unassisted at "standard", sets 2-4 at
+     * "band_assisted". Attributing all five to the session's level would pool a 4-rep unassisted
+     * set into the band-assisted history, which is the opposite of per-(exercise, level) tracking.
+     */
+    data class LoggedSet(val setIndex: Int, val reps: Int, val levelKey: String?)
+
     /** One past occurrence of one exercise, flattened to what the rules actually need. */
     data class SessionSummary(
         val epochDay: Long,
-        /** Level this session was performed at. Null for weighted and core exercises. */
+        /** The exercise's level at the time. Individual sets may override it. Null for weighted/core. */
         val levelKey: String?,
         /** Weight this session was performed at. Null for bodyweight and core exercises. */
         val weightKg: Double?,
-        /** Reps of every logged set, in set order. */
-        val reps: List<Int>
+        /** Every logged set, in set order. */
+        val sets: List<LoggedSet>
     ) {
+        /** Reps of every logged set, in set order, regardless of rung. */
+        val reps: List<Int> get() = sets.map { it.reps }
+
+        /**
+         * The sets that count when evaluating [levelKey].
+         *
+         * A null [levelKey] means "this exercise has no ladder" (weighted or core), so every set
+         * counts. A non-null one selects only the sets performed at that exact rung.
+         */
+        fun setsAt(levelKey: String?): List<LoggedSet> =
+            if (levelKey == null) sets else sets.filter { it.levelKey == levelKey }
+
+        fun repsAt(levelKey: String?): List<Int> = setsAt(levelKey).map { it.reps }
+
         val topReps: Int get() = reps.maxOrNull() ?: 0
         val lowestReps: Int get() = reps.minOrNull() ?: 0
-        val isEmpty: Boolean get() = reps.isEmpty()
+        val isEmpty: Boolean get() = sets.isEmpty()
+
+        companion object {
+            /**
+             * Every set performed at the session's own level — the ordinary, non-mixed case, and
+             * what every exercise except pull-up looks like.
+             */
+            fun uniform(
+                epochDay: Long,
+                levelKey: String?,
+                weightKg: Double?,
+                reps: List<Int>
+            ): SessionSummary = SessionSummary(
+                epochDay = epochDay,
+                levelKey = levelKey,
+                weightKg = weightKg,
+                sets = reps.mapIndexed { i, r -> LoggedSet(i, r, levelKey) }
+            )
+        }
     }
 
     /** Everything the engine needs to know about the exercise being evaluated. */
@@ -97,8 +139,16 @@ object ProgressionEngine {
      * Double-progression convention: EVERY working set has to reach the top of the range, not
      * just the best one. Using the lowest set stops one strong first set from carrying a session.
      */
-    fun sessionQualifies(session: SessionSummary, hypertrophyMax: Int): Boolean =
-        !session.isEmpty && session.lowestReps >= hypertrophyMax
+    fun sessionQualifies(
+        session: SessionSummary,
+        hypertrophyMax: Int,
+        levelKey: String? = null
+    ): Boolean {
+        // Only the sets performed at the rung being evaluated. A mixed session's sets at OTHER
+        // rungs are irrelevant here and must not drag the minimum down.
+        val reps = session.repsAt(levelKey)
+        return reps.isNotEmpty() && reps.min() >= hypertrophyMax
+    }
 
     /**
      * Count how many of the most recent sessions qualify, without a gap.
@@ -107,10 +157,14 @@ object ProgressionEngine {
      * the current weight (Case B). The count stops at the first session that fails, which is what
      * makes the window CONSECUTIVE rather than "any N of the last M".
      */
-    fun qualifyingStreak(recentFirst: List<SessionSummary>, hypertrophyMax: Int): Int {
+    fun qualifyingStreak(
+        recentFirst: List<SessionSummary>,
+        hypertrophyMax: Int,
+        levelKey: String? = null
+    ): Int {
         var streak = 0
         for (session in recentFirst) {
-            if (sessionQualifies(session, hypertrophyMax)) streak++ else break
+            if (sessionQualifies(session, hypertrophyMax, levelKey)) streak++ else break
         }
         return streak
     }
@@ -145,9 +199,11 @@ object ProgressionEngine {
         val currentLevel = exercise.currentLevelKey
             ?: return Outcome.Hold("No current level set", 0, window)
 
-        // PER (EXERCISE, LEVEL): only sessions performed at this exact rung count.
-        val atLevel = history.filter { it.levelKey == currentLevel }
-        val streak = qualifyingStreak(atLevel.take(window), exercise.hypertrophyMax)
+        // PER (EXERCISE, LEVEL): a session counts if it actually contains work at this rung,
+        // and only its sets at this rung are judged. Filtering on the session's own levelKey
+        // would be wrong for a mixed session like pull-up.
+        val atLevel = history.filter { it.setsAt(currentLevel).isNotEmpty() }
+        val streak = qualifyingStreak(atLevel.take(window), exercise.hypertrophyMax, currentLevel)
 
         if (streak < window) {
             return Outcome.Hold(
@@ -220,15 +276,41 @@ object ProgressionEngine {
      * new level becomes its baseline" case. Regressing to an easier rung picks that rung's own
      * history back up rather than comparing against the harder one.
      */
-    fun baselineAtLevel(history: List<SessionSummary>, levelKey: String?): Int? {
-        val relevant = if (levelKey == null) history else history.filter { it.levelKey == levelKey }
-        return relevant.firstOrNull { !it.isEmpty }?.topReps
-    }
+    fun baselineAtLevel(
+        history: List<SessionSummary>,
+        levelKey: String?,
+        weightKg: Double? = null
+    ): Int? = rungHistory(history, levelKey, weightKg)
+        .firstOrNull { it.repsAt(levelKey).isNotEmpty() }
+        ?.repsAt(levelKey)
+        ?.maxOrNull()
 
-    /** All-time best single set at this (exercise, level) pair. Null if the rung is untouched. */
-    fun personalRecordAtLevel(history: List<SessionSummary>, levelKey: String?): Int? {
-        val relevant = if (levelKey == null) history else history.filter { it.levelKey == levelKey }
-        return relevant.flatMap { it.reps }.maxOrNull()
+    /** All-time best single set at this rung. Null if the rung is untouched. */
+    fun personalRecordAtLevel(
+        history: List<SessionSummary>,
+        levelKey: String?,
+        weightKg: Double? = null
+    ): Int? = rungHistory(history, levelKey, weightKg).flatMap { it.repsAt(levelKey) }.maxOrNull()
+
+    /**
+     * The history that belongs to one rung.
+     *
+     * "Rung" is whichever of the two progression axes this exercise uses:
+     *
+     *   Case A  BODYWEIGHT_PROGRESSION -> the level. Sessions containing work at that level.
+     *   Case B  WEIGHTED               -> the load. Sessions performed at that weight, because a
+     *                                     10 kg PR is not a 12 kg PR, exactly as evaluateWeighted
+     *                                     already refuses to count lighter sessions toward a jump.
+     *   Neither (core / untracked)     -> everything.
+     */
+    private fun rungHistory(
+        history: List<SessionSummary>,
+        levelKey: String?,
+        weightKg: Double?
+    ): List<SessionSummary> = when {
+        levelKey != null -> history.filter { it.setsAt(levelKey).isNotEmpty() }
+        weightKg != null -> history.filter { it.weightKg != null && sameWeight(it.weightKg, weightKg) }
+        else -> history
     }
 
     /**
@@ -245,13 +327,19 @@ object ProgressionEngine {
         goalReps: Int,
         history: List<SessionSummary>,
         levelKey: String?,
-        hypertrophyMin: Int
+        hypertrophyMin: Int,
+        weightKg: Double? = null
     ): Int {
         if (isFixedRep) return goalReps
-        val lastSession = (if (levelKey == null) history else history.filter { it.levelKey == levelKey })
-            .firstOrNull { !it.isEmpty }
+        val lastSession = rungHistory(history, levelKey, weightKg)
+            .firstOrNull { it.repsAt(levelKey).isNotEmpty() }
             ?: return hypertrophyMin
-        return lastSession.reps.getOrNull(setIndex) ?: lastSession.topReps
+        // Match on the stored set index rather than a list position, so filtering out sets from
+        // other rungs cannot silently shift set 3's target onto set 1.
+        return lastSession.sets.firstOrNull { it.setIndex == setIndex && it.levelKey == levelKey }
+            ?.reps
+            ?: lastSession.repsAt(levelKey).maxOrNull()
+            ?: hypertrophyMin
     }
 
     /* ------------------------------------ helpers ------------------------------------ */

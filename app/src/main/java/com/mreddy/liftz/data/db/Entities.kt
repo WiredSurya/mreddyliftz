@@ -169,6 +169,14 @@ data class SetLogEntity(
     val setIndex: Int,
     val reps: Int,
     val weightKg: Double? = null,
+    /**
+     * The rung this set was ACTUALLY performed at, mirroring the per-set weightKg above.
+     * Usually the exercise's level at the time, but a planned set can override it: pull-up logs
+     * sets 0-1 at "standard" and sets 2-4 at "band_assisted" in the same session. Without this the
+     * unassisted sets get pooled into the band-assisted history and break per-(exercise, level)
+     * tracking. Null for weighted/core exercises, and on rows written before schema version 2.
+     */
+    val levelKey: String? = null,
     val setType: SetType,
     val loggedAtMs: Long
 )

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "exported_at": "2026-08-30",
   "app": "mreddyLiftz",
 
@@ -13,6 +13,8 @@
     "at the current level suggests moving up. The user always confirms; nothing auto-switches.",
     "PRs are tracked per (exercise, level) pair, so dropping to an easier level compares against that level only.",
     "set_plan is optional. Include it when sets are not uniform, like the pull-up below.",
+    "A session may mix levels. Give sessions[].set_levels, parallel to sessions[].sets, to say which",
+    "level each set was actually done at. Omit it when every set was at the session's own 'level'.",
     "Keys starting with an underscore are comments and are ignored on import."
   ],
 

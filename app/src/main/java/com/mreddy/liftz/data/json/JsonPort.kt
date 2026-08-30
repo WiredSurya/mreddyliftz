@@ -112,7 +112,13 @@ object JsonPort {
                         durationSeconds =
                             ((s.session.finishedAtMs - s.session.startedAtMs) / 1000L).toInt()
                                 .coerceAtLeast(0),
-                        sets = s.orderedSets.map { it.reps }
+                        sets = s.orderedSets.map { it.reps },
+                        // Only written when the session actually mixes rungs; otherwise the
+                        // session-level `level` already says everything and this stays absent.
+                        setLevels = s.orderedSets
+                            .map { it.levelKey ?: s.session.levelKey }
+                            .takeIf { levels -> levels.any { it != s.session.levelKey } }
+                            ?: emptyList()
                     )
                 }
             }
@@ -329,6 +335,9 @@ object JsonPort {
                         setIndex = i,
                         reps = reps,
                         weightKg = s.weightKg,
+                        // Per-set rung if the file carries one, else the session's level, which is
+                        // what pre-v2 files meant implicitly.
+                        levelKey = s.setLevels.getOrNull(i) ?: s.level,
                         setType = SetType.TO_FAILURE,
                         loggedAtMs = 0
                     )

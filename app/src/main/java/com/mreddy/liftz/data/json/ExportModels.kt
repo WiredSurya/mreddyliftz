@@ -34,7 +34,7 @@ data class LiftzExport(
     @SerialName("daily_logs") val dailyLogs: List<DailyLogJson> = emptyList(),
     @SerialName("sessions") val sessions: List<SessionJson> = emptyList()
 ) {
-    companion object { const val SCHEMA_VERSION = 1 }
+    companion object { const val SCHEMA_VERSION = 2 }
 }
 
 @Serializable
@@ -137,5 +137,12 @@ data class SessionJson(
     @SerialName("total_rest_seconds") val totalRestSeconds: Int = 0,
     @SerialName("duration_seconds") val durationSeconds: Int = 0,
     /** Reps in set order. */
-    val sets: List<Int> = emptyList()
+    val sets: List<Int> = emptyList(),
+    /**
+     * Optional, parallel to [sets]: the rung each set was performed at, for exercises that mix
+     * rungs in one session (pull-up does). Omitted entirely when every set shares the session's
+     * own [level], which is the normal case, so files stay readable. Absent in files written
+     * before schema_version 2 — importing one just falls back to [level].
+     */
+    @SerialName("set_levels") val setLevels: List<String?> = emptyList()
 )

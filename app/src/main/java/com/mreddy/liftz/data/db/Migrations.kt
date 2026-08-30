@@ -37,15 +37,15 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *
  * TEMPLATE — the most common case, adding a nullable column:
  *
- *     val MIGRATION_1_2 = object : Migration(1, 2) {
+ *     private val MIGRATION_2_3 = object : Migration(2, 3) {
  *         override fun migrate(db: SupportSQLiteDatabase) {
- *             db.execSQL("ALTER TABLE set_logs ADD COLUMN weightKg REAL")
+ *             db.execSQL("ALTER TABLE set_logs ADD COLUMN rpe REAL")
  *         }
  *     }
  *
  * A NOT NULL column needs a DEFAULT so existing rows stay valid:
  *
- *     db.execSQL("ALTER TABLE set_logs ADD COLUMN weightKg REAL NOT NULL DEFAULT 0.0")
+ *     db.execSQL("ALTER TABLE set_logs ADD COLUMN rpe REAL NOT NULL DEFAULT 0.0")
  *
  * SQLite cannot drop or retype a column in place. For those, do the create-copy-drop-rename dance
  * inside the single migrate() call: create the new table under a temp name, INSERT ... SELECT the
@@ -60,22 +60,37 @@ object Migrations {
      * Invariant, enforced by MigrationsTest: [ALL] holds a contiguous 1 -> 2 -> ... -> N chain
      * ending at this value.
      */
-    const val SCHEMA_VERSION = 1
+    const val SCHEMA_VERSION = 2
 
     /**
-     * Every migration, in ascending order. Empty at version 1 — there is nothing to migrate from
-     * yet — and that is the correct state, not an omission. Append, never rewrite.
+     * v1 -> v2: `set_logs.levelKey`.
+     *
+     * Sets used to inherit their rung from the parent session, which silently pooled the pull-up's
+     * unassisted "standard" sets into its "band_assisted" history. Nullable with no default, so
+     * every pre-existing row keeps NULL and the read path falls back to the session's level —
+     * exactly the behaviour those rows were written under. No data is rewritten or lost.
+     */
+    private val MIGRATION_1_2 = migration(1, 2) { db ->
+        db.execSQL("ALTER TABLE set_logs ADD COLUMN levelKey TEXT")
+    }
+
+    /**
+     * Every migration, in ascending order. Append, never rewrite.
+     *
+     * NOTE: this must stay the LAST declaration in the object. Kotlin initialises an object's
+     * properties top to bottom, so a migration referenced here before its own `val` has run would
+     * be silently null at runtime.
      */
     val ALL: Array<Migration> = arrayOf(
-        // MIGRATION_1_2,
+        MIGRATION_1_2,
     )
 }
 
 /**
  * Convenience for writing a migration as a lambda instead of an object expression:
  *
- *     val MIGRATION_1_2 = migration(1, 2) { db ->
- *         db.execSQL("ALTER TABLE set_logs ADD COLUMN weightKg REAL")
+ *     private val MIGRATION_2_3 = migration(2, 3) { db ->
+ *         db.execSQL("ALTER TABLE set_logs ADD COLUMN rpe REAL")
  *     }
  */
 fun migration(from: Int, to: Int, body: (SupportSQLiteDatabase) -> Unit): Migration =
