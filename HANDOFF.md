@@ -51,9 +51,9 @@ app/src/test/java/...    JVM unit tests for the domain layer
 | # | Piece | State | Commit |
 |---|-------|-------|--------|
 | 1 | Gradle scaffold, manifest, resources, adaptive icon | [x] | `Scaffold Gradle/Compose Android project...` |
-| 2 | Room schema: enums, entities, relations, DAOs, database, seed | [ ] | |
-| 3 | Progression engine + time estimator + day completion (domain) | [ ] | |
-| 4 | Repository layer | [ ] | |
+| 2 | Room schema: enums, entities, relations, DAOs, database, seed | [x] | in HANDOFF commit |
+| 3 | Progression engine + time estimator + day completion (domain) | [x] | `Domain layer ... + LiftzRepository` |
+| 4 | Repository layer | [x] | `Domain layer ... + LiftzRepository` |
 | 5 | Compose theme + navigation skeleton | [ ] | |
 | 6 | Calendar screen | [ ] | |
 | 7 | Workout screen | [ ] | |
