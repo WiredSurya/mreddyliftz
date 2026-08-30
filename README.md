@@ -160,3 +160,6 @@ mreddyliftz_export_template.json
 3. Sharpen the routine: set your real weekly split, or import a JSON file.
 4. Optional: per-set weight logging (currently one weight per session), exercise-level notes history,
    and a "workout summary" screen after the last exercise.
+## License
+
+This repository is public for portfolio/viewing purposes only. All rights reserved — no permission is granted to use, modify, or distribute this code.
