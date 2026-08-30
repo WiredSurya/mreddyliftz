@@ -22,9 +22,17 @@ Keep this file updated. Every completed piece = one git commit + one line in the
 - **Package:** `com.mreddy.liftz` — sources under `app/src/main/java/com/mreddy/liftz/`.
 - **Gradle:** Kotlin DSL + version catalog at `gradle/libs.versions.toml`. AGP 8.7.3, Kotlin 2.0.21, KSP, Room 2.6.1.
 - **minSdk 26, compileSdk/targetSdk 35, JVM target 17.**
-- **Build env caveat:** the sandbox this was written in had **no Android SDK and no Maven access**, so
-  NOTHING has been compiled. Everything is written to be correct on first open in Android Studio, but
-  expect to fix a few import/API nits on first sync. That is normal, not a sign the design is wrong.
+- **Build status — verified 2026-08-30 on the real Linux dev machine (no longer "never compiled"):**
+  - `./gradlew :app:assembleDebug` -> BUILD SUCCESSFUL, 37 tasks, 0 errors.
+  - `./gradlew :app:testDebugUnitTest` -> **23/23 pass, 0 failures, 0 errors**
+    (DayCompletionTest 5, ProgressionEngineTest 14, TimeEstimatorTest 4).
+  - `python3 tools/engine_sim.py` -> **28/28 passed.**
+  The old "nothing has ever been compiled, expect import nits" caveat is obsolete. It compiles and
+  the domain layer is green.
+- **Android SDK is at `/home/surz/Android/Sdk`, and `local.properties` is NOT in the repo** (it is
+  gitignored). A fresh shell therefore needs `export ANDROID_HOME=/home/surz/Android/Sdk` before any
+  Gradle command, or every task dies with "SDK location not found". Alternatively write
+  `sdk.dir=/home/surz/Android/Sdk` into `local.properties` once.
 - Target dev machine is Linux with 8GB RAM: `gradle.properties` caps the daemon at 1536m on purpose.
 
 ## Architecture map (where things live)
@@ -66,14 +74,14 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 | 11 | Unit tests for domain layer + Python rule simulator | [x] | JVM unit tests... (28/28 green in the simulator) |
 | 12 | Glance widget (stretch) | [x] | Glance macro widget (Phase 2 stretch) and README |
 | 13 | README | [x] | Glance macro widget (Phase 2 stretch) and README |
+| 14 | Verification run: JVM unit tests + Python simulator | [x] | Verify domain layer: 23/23 unit tests and 28/28 engine_sim green |
 
 ## Next actions (in order)
 
-- [ ] Open in Android Studio, let Gradle sync, fix any compiler complaints. Nothing here has ever
-      been compiled, so expect a few import or API-signature nits. Start with:
-      `./gradlew :app:assembleDebug` and work down the error list.
-- [ ] Run `./gradlew :app:testDebugUnitTest` — the domain tests should pass with no device.
-      `python3 tools/engine_sim.py` proves the same rules independently (28/28).
+- [x] Compile it. DONE — `./gradlew :app:assembleDebug` is BUILD SUCCESSFUL with zero errors.
+- [x] Run `./gradlew :app:testDebugUnitTest` — DONE, **23/23 green, no failures, no errors**, no
+      device needed. `python3 tools/engine_sim.py` independently confirms the same rules, **28/28**.
+      Neither needed a fix; nothing was failing.
 - [ ] Install on a phone over USB. Do NOT bother with an emulator on an 8GB machine.
 - [ ] Set your real weekly split: edit `SeedData.routineDays` / `routineDayExercises`, or import a
       JSON file with your own `routine_days`. Current seed assumes full body Mon/Wed/Fri.
@@ -92,4 +100,6 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 - Rep increment is fixed at 1 and must NOT become a setting.
 - Calendar denominators (5 workout / 4 rest) come from the routine plan upfront, not from what got
   logged. `daily_logs.isWorkoutDay` is written when the day is first touched.
-- Do not configure a git remote or push. Local repo only, by request.
+- Git: a remote already exists (`origin` -> github.com/WiredSurya/mreddyliftz, branch `master`).
+  Commit locally as much as you like, but **do not `git push`** — pushing is the human's call, done
+  by hand after review. Do not add or re-point remotes either.
