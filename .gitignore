@@ -11,3 +11,9 @@
 local.properties
 *.hprof
 .kotlin/
+
+# Release signing. NEVER commit these — losing keystore.properties is recoverable
+# (regenerate it), losing the keystore file itself is not (see PLAY_STORE_LISTING.md).
+keystore.properties
+*.jks
+*.keystore

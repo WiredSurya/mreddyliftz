@@ -16,7 +16,10 @@ Keep this file updated. Every completed piece = one git commit + one line in the
 
 ## Project facts a fresh session needs
 
-- **App:** mreddyLiftz — native Android fitness + macro tracker. Solo hobby project, sideload only, no Play Store.
+- **App:** mreddyLiftz — native Android fitness + macro tracker. Started as sideload-only; Play
+  Store submission prep is now underway (release signing, listing copy, privacy policy — see
+  `PLAY_STORE_LISTING.md`). The account creation, screenshots, and actual Console submission are
+  not done yet — that file's status table tracks exactly what's left and what needs a human.
 - **Stack:** Kotlin, Jetpack Compose, Room (single source of truth), Jetpack Glance (Phase 2 widget).
   No Firebase, no backend, no network calls anywhere.
 - **Package:** `com.mreddy.liftz` — sources under `app/src/main/java/com/mreddy/liftz/`.
@@ -85,6 +88,7 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 | 17 | Domain-layer audit against the spec; per-set rung attribution fix | [x] | Fix per-(exercise,level) tracking for mixed-rung sessions: pull-up could never progress |
 | 18 | Post-workout summary screen (optional polish) | [x] | Post-workout summary screen |
 | 19 | Real-device verification: fresh install, mixed-rung logging, v1->v2 migration | [x] | (see Next actions — verified live, not a separate commit) |
+| 20 | Play Store prep: release signing config, signed AAB, privacy policy, listing copy | [x] | Play Store submission prep: release signing, privacy policy, listing copy |
 
 ## Next actions (in order)
 
@@ -134,9 +138,19 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 - [ ] Only tested on one device (OnePlus 6, Android 9). Layout/behaviour on other screen sizes,
       Android versions, and especially light-vs-dark theme switching is unverified — the phone used
       happened to be in light mode; dark mode was never seen live.
+- [ ] Play Store submission. See `PLAY_STORE_LISTING.md` for the full checklist — code-side prep
+      (signing, listing copy, privacy policy) is done, but account creation, screenshots, the Data
+      Safety form, and the actual Console upload all need a human with the Google account.
 
 ## Gotchas a fresh session should know
 
+- **Release keystore lives OUTSIDE this repo**, at `../keystore/mreddyliftz-upload.jks` (one
+  directory above the repo root), with credentials in `keystore.properties` at the repo root.
+  Both are git-ignored — check `.gitignore` before ever touching either, and NEVER commit them;
+  this repo is public. `keystore.properties` is easy to regenerate (just new random passwords for
+  the same key). The keystore FILE is not: losing it means the Play Store upload key is gone.
+  Back it up somewhere outside this project directory (password manager, external drive) — it is
+  not part of the git history and never should be.
 - Do NOT add Firebase, a backend, or any network call. Explicitly out of scope.
 - Room is the ONLY source of truth. The Glance widget writes the same tables; nothing is cached.
 - The progression engine (`domain/ProgressionEngine.kt`) has zero Android/Room imports on purpose.

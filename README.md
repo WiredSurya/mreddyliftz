@@ -1,7 +1,7 @@
 # mreddyLiftz
 
-Native Android fitness + macro tracker. Solo hobby project, sideload only, no Play Store, no backend,
-no network calls anywhere.
+Native Android fitness + macro tracker. Solo hobby project, no backend, no network calls anywhere.
+Started as sideload-only; Play Store submission prep is underway — see `PLAY_STORE_LISTING.md`.
 
 **Stack:** Kotlin, Jetpack Compose, Room (single source of truth), Jetpack Glance (widget),
 kotlinx.serialization (import/export). Gradle Kotlin DSL with a version catalog.
@@ -146,15 +146,13 @@ mreddyliftz_export_template.json
 
 ## What is stubbed or deliberately left out
 
-- **Never compiled.** No Android SDK in the authoring sandbox. First sync may need small fixes.
-- **No Room migrations.** Schema version 1 only. Add a migration (or uninstall/reinstall) before
-  changing entities on a device that already holds data.
 - **Weekly split is a guess.** See the assumption note above.
 - **Calories increment** is editable in Settings even though the brief only listed water/protein/carbs.
   The JSON `increments` block still exports only the three specified keys.
 - **Carbs** are a placeholder throughout (default 10 g/tap, 250 g goal) since there is no carb history yet.
-- Out of scope by request: Firebase or any backend, Play Store packaging, meal photo capture,
-  Zepp/sleep/HR/PAI integration.
+- Out of scope by request: Firebase or any backend, meal photo capture, Zepp/sleep/HR/PAI integration.
+  Play Store *packaging* (a signed release build, a listing) is now in progress — see
+  `PLAY_STORE_LISTING.md` — but a backend/Firebase/network layer is still explicitly out.
 - No instrumented (device) tests, no Compose UI tests.
 
 ## Next steps if you want to keep going
