@@ -160,15 +160,18 @@ mreddyliftz_export_template.json
 ## Next steps if you want to keep going
 
 It compiles clean (`./gradlew :app:assembleDebug`, no warnings) and the domain layer is green:
-35 JVM unit tests plus 40 checks in `tools/engine_sim.py`. A Room migration path exists, and the
-post-workout summary screen is built. What is left:
+35 JVM unit tests plus 40 checks in `tools/engine_sim.py`. It has also run on real hardware
+(OnePlus 6, Android 9): fresh install, a full pull-up session logged through the UI, and the
+v1 -> v2 Room migration verified by upgrading an app holding a real pre-migration database in
+place and confirming the schema, the data, and the app's own read path all came through intact.
+Details in `HANDOFF.md`. What is left:
 
-1. **Run it on a phone.** Nothing in this repo has ever been on a screen, and the v1 -> v2 Room
-   migration has never run against a real SQLite file. That is the main open verification gap.
-2. Sharpen the routine: set your real weekly split, or import a JSON file.
-3. Optional: per-set weight logging, exercise-level notes history, Compose UI tests.
+1. Sharpen the routine: set your real weekly split, or import a JSON file.
+2. Optional: per-set weight logging, exercise-level notes history, Compose UI tests.
    Per-set weight is not the quick win it looks like — see the note in `HANDOFF.md`, because a
    naive version reintroduces a progression bug that was already fixed once.
+3. Only tested on one device and in light theme. Other screen sizes, Android versions, and dark
+   mode are unverified.
 ## License
 
 This repository is public for portfolio/viewing purposes only. All rights reserved — no permission is granted to use, modify, or distribute this code.

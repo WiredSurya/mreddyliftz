@@ -84,6 +84,7 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 | 16 | Room migration scaffold + version/chain guard test | [x] | Room migration scaffold so a future schema change cannot wipe the training log |
 | 17 | Domain-layer audit against the spec; per-set rung attribution fix | [x] | Fix per-(exercise,level) tracking for mixed-rung sessions: pull-up could never progress |
 | 18 | Post-workout summary screen (optional polish) | [x] | Post-workout summary screen |
+| 19 | Real-device verification: fresh install, mixed-rung logging, v1->v2 migration | [x] | (see Next actions — verified live, not a separate commit) |
 
 ## Next actions (in order)
 
@@ -103,21 +104,36 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 - [x] Audit the domain layer against the spec. DONE, and it found a real bug — see the
       per-set-rung note under Gotchas. `DayCompletion` (5 vs 4 denominator) and `TimeEstimator`
       both matched the spec exactly and needed no change.
-- [ ] Install on a phone over USB and confirm the v1 -> v2 migration runs clean. No device was
-      attached the night this was written, so the migration is verified only at the code and
-      schema-JSON level: the ALTER TABLE matches the column Room generated in
-      `app/schemas/.../2.json` exactly, and `MigrationsTest` proves the chain reaches version 2.
-      It has never actually run against a real SQLite file. That is the one open verification gap.
+- [x] Install on a phone and confirm the v1 -> v2 migration runs clean. DONE, for real, on
+      hardware (OnePlus 6, Android 9 / API 28), the same night — a second window opened up after
+      the initial handoff. This was not a quick smoke test: to actually exercise `MIGRATION_1_2`
+      rather than just trust it, the pre-fix commit (`9bdd73b`, schema v1, no `levelKey` column)
+      was checked out, built, and installed FRESH; a real pull-up session (all 5 sets, sessionId 1)
+      was logged through the UI so `set_logs` held real v1-shaped rows; then `master` (schema v2)
+      was installed IN PLACE over it — a genuine upgrade install, not a wipe. Confirmed by pulling
+      the on-device `mreddyliftz.db` before and after with `run-as` + `sqlite3`:
+        - `PRAGMA user_version` went 1 -> 2 automatically.
+        - `set_logs` gained the `levelKey` column via the real `ALTER TABLE`.
+        - All 5 pre-migration rows survived with their original ids, reps, and setType untouched —
+          zero data loss.
+        - The migrated rows' `levelKey` is NULL, exactly as documented, and the app read them back
+          without crashing: reopening the Pull-up exercise screen showed "PR at this level: 8 reps"
+          and the already-completed 5/5 gold ring, via the session-level fallback in `historyFor()`.
+      No `IllegalStateException`, no "migration...not found", no crash to home screen. This was the
+      one flagged open gap and it is now closed.
+- [x] Post-workout summary screen — DONE, and now also confirmed on a real screen (see above): the
+      "Workout summary" card renders correctly at the bottom of the workout queue with the right
+      label state ("See how the day is going so far" before completion).
 - [ ] Optional polish still on the table: per-set weight logging, Compose UI tests.
-      The post-workout summary screen is DONE (`ui/summary/`, reached from the card at the bottom
-      of the workout screen). Per-set weight logging was deliberately NOT started: `set_logs`
-      already has a per-set `weightKg` column, but making it editable per set means the load stops
-      being constant within a session, and `evaluateWeighted` currently filters history on the
-      SESSION's weight. Doing it properly means making weight a per-set rung the way `levelKey`
-      now is. That is a real design change, not a UI tweak — do not do it as a quick win, or you
-      will reintroduce the exact bug that commit 9e62919 fixed.
-- [ ] The summary screen has never been seen on a screen — no device that night. It compiles and
-      the read model is exercised by the type checker only. Expect to nudge spacing/colours.
+      Per-set weight logging was deliberately NOT started: `set_logs` already has a per-set
+      `weightKg` column, but making it editable per set means the load stops being constant within
+      a session, and `evaluateWeighted` currently filters history on the SESSION's weight. Doing it
+      properly means making weight a per-set rung the way `levelKey` now is. That is a real design
+      change, not a UI tweak — do not do it as a quick win, or you will reintroduce the exact bug
+      that commit 9e62919 fixed.
+- [ ] Only tested on one device (OnePlus 6, Android 9). Layout/behaviour on other screen sizes,
+      Android versions, and especially light-vs-dark theme switching is unverified — the phone used
+      happened to be in light mode; dark mode was never seen live.
 
 ## Gotchas a fresh session should know
 
