@@ -2,6 +2,7 @@ package com.mreddy.liftz
 
 import android.app.Application
 import com.mreddy.liftz.data.db.LiftzDatabase
+import com.mreddy.liftz.data.prefs.UiPrefs
 import com.mreddy.liftz.data.repo.LiftzRepository
 
 /**
@@ -12,6 +13,7 @@ class LiftzApp : Application() {
 
     val database: LiftzDatabase by lazy { LiftzDatabase.get(this) }
     val repository: LiftzRepository by lazy { LiftzRepository(database) }
+    val uiPrefs: UiPrefs by lazy { UiPrefs(this) }
 
     override fun onCreate() {
         super.onCreate()
@@ -23,5 +25,6 @@ class LiftzApp : Application() {
             private set
 
         fun repo(): LiftzRepository = instance.repository
+        fun prefs(): UiPrefs = instance.uiPrefs
     }
 }

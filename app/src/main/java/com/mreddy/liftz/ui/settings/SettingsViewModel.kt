@@ -66,6 +66,22 @@ class SettingsViewModel(
             .onFailure { _message.value = "Export failed: ${it.message}" }
     }
 
+    /**
+     * Copies the reference template bundled in assets/ out to a user-chosen file. Read-only with
+     * respect to the user's own data — it never touches Room, it just hands over the documented
+     * schema so the routine can be edited by hand and imported back.
+     */
+    fun saveBundledTemplate(context: android.content.Context, uri: Uri) = viewModelScope.launch {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                val bytes = context.assets.open(TEMPLATE_ASSET).use { it.readBytes() }
+                context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) }
+                    ?: error("Could not open the file for writing")
+            }
+        }.onSuccess { _message.value = "Template saved" }
+            .onFailure { _message.value = "Could not save template: ${it.message}" }
+    }
+
     fun importFrom(resolver: ContentResolver, uri: Uri, mode: JsonPort.ImportMode) =
         viewModelScope.launch {
             runCatching {
@@ -81,4 +97,8 @@ class SettingsViewModel(
                     "Imported ${it.exercises.size} exercises and ${it.coreExercises.size} core moves"
             }.onFailure { _message.value = "Import failed: ${it.message}" }
         }
+
+    private companion object {
+        const val TEMPLATE_ASSET = "mreddyliftz_export_template.json"
+    }
 }

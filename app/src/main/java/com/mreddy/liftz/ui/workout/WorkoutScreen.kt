@@ -49,6 +49,7 @@ import com.mreddy.liftz.data.repo.LiftzRepository
 import com.mreddy.liftz.domain.TimeEstimator
 import com.mreddy.liftz.ui.common.factoryOf
 import com.mreddy.liftz.ui.theme.LiftzGold
+import com.mreddy.liftz.ui.common.RollingNumber
 import com.mreddy.liftz.ui.theme.LiftzGreen
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -345,11 +346,19 @@ private fun MacroRow(
     ) {
         Column(Modifier.weight(1f)) {
             Text(label, fontSize = 14.sp)
-            Text(
-                "$current / $target $unit",
-                fontSize = 12.sp,
-                color = if (hit) LiftzGreen else MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Rolls like a dial so a +/- tap is unmistakable at a glance.
+                RollingNumber(
+                    value = current,
+                    fontSize = 12.sp,
+                    color = if (hit) LiftzGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    " / $target $unit",
+                    fontSize = 12.sp,
+                    color = if (hit) LiftzGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         IconButton(onClick = { onStep(-step) }) {
             Icon(Icons.Filled.Remove, contentDescription = "Minus $step $unit")

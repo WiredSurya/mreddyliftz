@@ -1,5 +1,7 @@
 package com.mreddy.liftz.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -16,13 +18,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,7 +39,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mreddy.liftz.LiftzApp
 import com.mreddy.liftz.data.db.ExerciseType
 import com.mreddy.liftz.data.json.JsonPort
+import com.mreddy.liftz.data.prefs.ThemeMode
 import com.mreddy.liftz.ui.common.factoryOf
+import kotlinx.coroutines.launch
 
 /**
  * SETTINGS (behind the profile icon in the bottom nav).
@@ -67,6 +74,15 @@ fun SettingsScreen(
     val mergeLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { viewModel.importFrom(context.contentResolver, it, JsonPort.ImportMode.MERGE) } }
+
+    // Writes the reference template that ships in assets/ out to wherever the user picks, so the
+    // documented schema is reachable from inside the app instead of only from the repo.
+    val templateLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri -> uri?.let { viewModel.saveBundledTemplate(context, it) } }
+
+    val scope = rememberCoroutineScope()
+    val themeMode by LiftzApp.prefs().themeMode.collectAsState(initial = ThemeMode.SYSTEM)
 
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -230,9 +246,89 @@ fun SettingsScreen(
             }
         }
 
+        /* ---- appearance ---- */
+        item {
+            Card {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Appearance", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "System follows your phone's own light/dark setting.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ThemeMode.entries.forEach { mode ->
+                            FilterChip(
+                                selected = themeMode == mode,
+                                onClick = { scope.launch { LiftzApp.prefs().setThemeMode(mode) } },
+                                label = {
+                                    Text(
+                                        mode.name.lowercase().replaceFirstChar { it.uppercase() },
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        /* ---- JSON schema reference ---- */
+        item {
+            Card {
+                Column(Modifier.padding(12.dp)) {
+                    Text("JSON template", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "The reference file showing every supported key, with an instructions " +
+                            "block inside it. Save a copy to edit your routine by hand, then " +
+                            "bring it back in with Import above.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { templateLauncher.launch("mreddyliftz_template.json") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Save template file") }
+                }
+            }
+        }
+
+        /* ---- support ---- */
+        item {
+            Card {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Support", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        SUPPORT_EMAIL,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            // Opens the user's mail app with a blank draft. Nothing is sent from
+                            // here — the user writes and sends it themselves.
+                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:$SUPPORT_EMAIL")
+                                putExtra(Intent.EXTRA_SUBJECT, "mreddyLiftz support")
+                            }
+                            runCatching { context.startActivity(intent) }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Email support") }
+                }
+            }
+        }
+
         item { Spacer(Modifier.height(30.dp)) }
     }
 }
+
+/** Contact address shown in Settings and used for the Play Store listing's support contact. */
+const val SUPPORT_EMAIL = "suryapatrimath@gmail.com"
 
 @Composable
 private fun StepperRow(label: String, value: String, step: Int, onChange: (Int) -> Unit) {

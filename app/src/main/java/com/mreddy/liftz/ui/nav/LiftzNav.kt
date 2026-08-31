@@ -1,6 +1,9 @@
 package com.mreddy.liftz.ui.nav
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -12,7 +15,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -25,12 +29,18 @@ import com.mreddy.liftz.ui.exercise.ExerciseScreen
 import com.mreddy.liftz.ui.settings.SettingsScreen
 import com.mreddy.liftz.ui.summary.SummaryScreen
 import com.mreddy.liftz.ui.workout.WorkoutScreen
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /** All navigation routes in one place. Days are passed around as epoch days (a plain Long). */
 object Routes {
-    const val CALENDAR = "calendar"
-    const val SETTINGS = "settings"
+    /**
+     * The three bottom-nav tabs are NOT separate nav destinations any more — they are pages of a
+     * swipeable pager living behind this single route. That is what makes left/right swiping
+     * between Calendar / Today / Profile work; with three independent NavHost destinations there
+     * is nothing for a horizontal drag to move between.
+     */
+    const val HOME = "home"
 
     const val WORKOUT = "workout/{epochDay}"
     fun workout(epochDay: Long) = "workout/$epochDay"
@@ -42,10 +52,21 @@ object Routes {
     fun summary(epochDay: Long) = "summary/$epochDay"
 }
 
-private data class BottomItem(
-    val route: String,
+/* Pager page indices. Order here is the left-to-right swipe order. */
+private const val PAGE_CALENDAR = 0
+private const val PAGE_TODAY = 1
+private const val PAGE_PROFILE = 2
+private const val PAGE_COUNT = 3
+
+private data class HomeTab(
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
+private val homeTabs = listOf(
+    HomeTab("Calendar", Icons.Filled.CalendarMonth),
+    HomeTab("Today", Icons.Filled.FitnessCenter),
+    HomeTab("Profile", Icons.Filled.Person)
 )
 
 @Composable
@@ -54,31 +75,29 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    val bottomItems = listOf(
-        BottomItem(Routes.CALENDAR, "Calendar", Icons.Filled.CalendarMonth),
-        BottomItem(Routes.workout(today.toEpochDay()), "Today", Icons.Filled.FitnessCenter),
-        BottomItem(Routes.SETTINGS, "Profile", Icons.Filled.Person)
-    )
+    // Hoisted above the NavHost so the selected tab survives pushing/popping a detail screen.
+    val pagerState = rememberPagerState(initialPage = PAGE_CALENDAR) { PAGE_COUNT }
+    val scope = rememberCoroutineScope()
+    val onHome = currentRoute == Routes.HOME
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                bottomItems.forEach { item ->
-                    val selected = currentRoute == item.route ||
-                        (item.route.startsWith("workout/") && currentRoute == Routes.WORKOUT)
+                homeTabs.forEachIndexed { index, tab ->
                     NavigationBarItem(
-                        selected = selected,
+                        // Only highlight a tab when the pager is actually what is on screen; on a
+                        // pushed detail screen nothing is selected.
+                        selected = onHome && pagerState.currentPage == index,
                         onClick = {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
+                            // From a detail screen, come back to the pager first, then move to
+                            // the requested page.
+                            if (!onHome) {
+                                navController.popBackStack(Routes.HOME, inclusive = false)
                             }
+                            scope.launch { pagerState.animateScrollToPage(index) }
                         },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) }
+                        icon = { Icon(tab.icon, contentDescription = tab.label) },
+                        label = { Text(tab.label) }
                     )
                 }
             }
@@ -86,14 +105,43 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.CALENDAR,
-            modifier = androidx.compose.ui.Modifier.padding(innerPadding)
+            startDestination = Routes.HOME,
+            modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Routes.CALENDAR) {
-                CalendarScreen(
-                    onDayClick = { date -> navController.navigate(Routes.workout(date.toEpochDay())) }
-                )
+            composable(Routes.HOME) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (page) {
+                        PAGE_CALENDAR -> CalendarScreen(
+                            onDayClick = { date ->
+                                // Today opens as the adjacent pager page rather than a pushed
+                                // screen, so swiping still works after tapping today's cell.
+                                if (date == today) {
+                                    scope.launch { pagerState.animateScrollToPage(PAGE_TODAY) }
+                                } else {
+                                    navController.navigate(Routes.workout(date.toEpochDay()))
+                                }
+                            }
+                        )
+
+                        PAGE_TODAY -> WorkoutScreen(
+                            date = today,
+                            onExerciseClick = { exerciseId ->
+                                navController.navigate(Routes.exercise(exerciseId, today.toEpochDay()))
+                            },
+                            onSummaryClick = {
+                                navController.navigate(Routes.summary(today.toEpochDay()))
+                            },
+                            onBack = { }   // top-level page: nothing to go back to
+                        )
+
+                        PAGE_PROFILE -> SettingsScreen()
+                    }
+                }
             }
+
             composable(
                 route = Routes.WORKOUT,
                 arguments = listOf(navArgument("epochDay") { type = NavType.LongType })
@@ -136,7 +184,6 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                     onFinished = { navController.popBackStack() }
                 )
             }
-            composable(Routes.SETTINGS) { SettingsScreen() }
         }
     }
 }
