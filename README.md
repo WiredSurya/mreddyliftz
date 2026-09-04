@@ -1,7 +1,10 @@
 # mreddyLiftz
 
 Native Android fitness + macro tracker. Solo hobby project, no backend, no network calls anywhere.
-Started as sideload-only; Play Store submission prep is underway — see `PLAY_STORE_LISTING.md`.
+
+**Not going on the Play Store** — it is a personal app, shared with friends by link.
+Install it: **https://wiredsurya.github.io/mreddyliftz/** (Android 8+).
+Distribution and update process: `docs/DISTRIBUTION.md`.
 
 **Stack:** Kotlin, Jetpack Compose, Room (single source of truth), Jetpack Glance (widget),
 kotlinx.serialization (import/export). Gradle Kotlin DSL with a version catalog.
@@ -20,9 +23,9 @@ minSdk 26, compileSdk/targetSdk 35, JVM target 17.
    `gradle.properties` caps the Gradle daemon at 1536m for the same reason.
 4. `./gradlew :app:testDebugUnitTest` runs the domain unit tests on the JVM, no device needed.
 
-**This code has never been compiled.** It was written in a sandbox with no Android SDK and no Maven
-access, so expect a handful of import or API nits on first sync. The logic, schema, and structure are
-the parts that took the thinking; those are covered by tests and by `tools/engine_sim.py`.
+It compiles clean and has been run on real hardware (OnePlus 6, Android 9) from both debug and
+release builds. 66 JVM unit tests, 45 checks in `tools/engine_sim.py`, and both Room migrations
+verified against real SQLite by `tools/migration_check.py`.
 
 ---
 
@@ -32,8 +35,12 @@ the parts that took the thinking; those are covered by tests and by `tools/engin
 Google-Calendar-style month grid showing **every** day, not just workout days. Each cell fills green
 from the bottom in proportion to the fraction of that day's goals hit.
 
-- Workout day: denominator **5** (water, protein, carbs, calories, workout)
+- Workout day: denominator **5** (water, protein, carbs, [fat OR calories], workout)
 - Non-workout day: denominator **4**
+
+The fourth macro slot holds **fat** when calories are auto-calculated (the default) and
+**calories** when they are entered by hand — always exactly one of the two, which is what keeps
+these denominators at 5 and 4 even though a macro was added.
 
 The denominator comes from the routine plan and is known upfront (`daily_logs.isWorkoutDay` is written
 when the day is first touched, seeded from `routine_days`), not computed after the fact.
@@ -61,8 +68,9 @@ Full screen on tap. Contains:
   not a per-set countdown.
 
 ### 4. Settings screen (profile icon in the bottom nav)
-Editable per-tap increments (water 250 ml, protein 10 g, carbs 10 g placeholder, calories),
-daily goals, per-exercise rolling window, and JSON import/export through the system file picker.
+Editable per-tap increments (water, protein, carbs, fat, calories), daily goals, a
+calculate-calories-from-macros switch, light/dark/system theme, per-exercise rolling window, backup
+folder selection, and JSON import/export through the system file picker.
 **Rep increment is fixed at 1 and deliberately not editable.**
 
 ### 5. Adaptive progression engine
@@ -96,14 +104,21 @@ streak, drawn inside the 66dp safe zone) over `ic_launcher_background.xml` (dark
 sheen band). Also wired as the monochrome layer for themed icons.
 
 ### 8. Glance widget (Phase 2 stretch, done)
-`widget/MacroWidget.kt`. Home-screen water/protein/carbs quick-add with +/- buttons that read and
-write the **same Room tables**. No separate state, no sync.
+`widget/MacroWidget.kt`. Home-screen quick-add with +/- buttons that read and write the **same Room
+tables**. No separate state, no sync. Resizing reveals more of the day rather than just stretching.
+Taps give a haptic tick immediately and animated dots while the launcher catches up — a widget tap
+on a dead app process has to pay a cold start before any app code runs, which is a platform floor.
 
 ---
 
-## Seed routine
+## The example routine
 
-Written on first DB create (`data/seed/SeedData.kt`):
+**New installs start empty.** The app ships with no exercises at all — it is your routine, not
+somebody else's. Two ways to fill it: build exercises in the app, or use the Coach tab to have any
+AI assistant write a plan and paste it back in.
+
+The routine below is kept in `data/seed/SeedData.kt` as a worked example of every field the schema
+supports, and is loaded **on demand** from Settings ("Load the example routine"):
 
 | Exercise | Type | Set type | Range | Sets | Start |
 |---|---|---|---|---|---|
@@ -114,9 +129,8 @@ Written on first DB create (`data/seed/SeedData.kt`):
 | Nordic curl negative | bodyweight_progression | TO_FAILURE | 6-10 | 3 | `partial_rom` |
 | Plank / hanging knee raise / side plank | core | not tracked | - | 3/3/2 | - |
 
-**Assumption to change if wrong:** the weekly split was not specified, so the seed puts a full-body
-session on Monday, Wednesday and Friday with rest on the other days. Edit `SeedData.routineDays` /
-`routineDayExercises`, or just import a JSON file with your own `routine_days`.
+The example uses a full-body session on Monday, Wednesday and Friday. On a blank install every day
+starts as a rest day and becomes a training day the moment you schedule something on it.
 
 ---
 
@@ -151,8 +165,8 @@ mreddyliftz_export_template.json
   The JSON `increments` block still exports only the three specified keys.
 - **Carbs** are a placeholder throughout (default 10 g/tap, 250 g goal) since there is no carb history yet.
 - Out of scope by request: Firebase or any backend, meal photo capture, Zepp/sleep/HR/PAI integration.
-  Play Store *packaging* (a signed release build, a listing) is now in progress — see
-  `PLAY_STORE_LISTING.md` — but a backend/Firebase/network layer is still explicitly out.
+  The Play Store is explicitly NOT the target (see `docs/DISTRIBUTION.md`); the app is
+  sideloaded from a link. A backend/Firebase/network layer is still out too.
 - No instrumented (device) tests, no Compose UI tests.
 
 ## Next steps if you want to keep going

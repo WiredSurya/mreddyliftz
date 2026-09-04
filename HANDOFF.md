@@ -16,10 +16,15 @@ Keep this file updated. Every completed piece = one git commit + one line in the
 
 ## Project facts a fresh session needs
 
-- **App:** mreddyLiftz — native Android fitness + macro tracker. Started as sideload-only; Play
-  Store submission prep is now underway (release signing, listing copy, privacy policy — see
-  `PLAY_STORE_LISTING.md`). The account creation, screenshots, and actual Console submission are
-  not done yet — that file's status table tracks exactly what's left and what needs a human.
+- **App:** mreddyLiftz — native Android fitness + macro tracker. A personal app, shared with
+  friends. **The Play Store is deliberately NOT the target** (decided 2026-09-04): it ships as a
+  signed APK from https://wiredsurya.github.io/mreddyliftz/, and `docs/DISTRIBUTION.md` is the
+  process. Do not restart Play Console work without being asked — the store prep that exists is
+  dormant on purpose, not unfinished.
+- **THE ONE THING THAT CAN BREAK EVERYTHING:** the release keystore at
+  `../keystore/mreddyliftz-upload.jks` (git-ignored, one directory above the repo). Android will
+  not update an app signed with a different key, so losing it strands every existing install with
+  no recovery — and with no store account behind it, there is no Play App Signing safety net.
 - **Stack:** Kotlin, Jetpack Compose, Room (single source of truth), Jetpack Glance (widget),
   DataStore (UI prefs only). No Firebase, no backend, and no network calls: the app holds
   ACCESS_NETWORK_STATE (read-only, for the offline indicator) but deliberately does NOT hold
