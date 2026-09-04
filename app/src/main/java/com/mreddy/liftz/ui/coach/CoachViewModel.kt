@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mreddy.liftz.data.db.LiftzDatabase
 import com.mreddy.liftz.data.json.JsonPort
+import com.mreddy.liftz.data.json.PastedJson
 import com.mreddy.liftz.data.repo.LiftzRepository
 import com.mreddy.liftz.domain.Coach
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +92,38 @@ class CoachViewModel(
     }
 
     fun clearMessage() { _state.value = _state.value.copy(message = null) }
+
+    /**
+     * Import from text pasted out of an LLM reply.
+     *
+     * The whole reply can be pasted — prose, fences and all — because [PastedJson] digs the
+     * document out. This exists because free tiers hand back a code block, not a file, so
+     * requiring a clean download would have made the coach round trip unusable for most people.
+     */
+    fun importPasted(raw: String, mode: JsonPort.ImportMode) = viewModelScope.launch {
+        when (val extracted = PastedJson.extract(raw)) {
+            is PastedJson.Result.Problem ->
+                _state.value = _state.value.copy(message = extracted.reason)
+
+            is PastedJson.Result.Ok -> runCatching {
+                val parsed = JsonPort.parse(extracted.json)
+                JsonPort.import(db, parsed, mode)
+            }.onSuccess {
+                reload()
+                _state.value = _state.value.copy(
+                    message = if (mode == JsonPort.ImportMode.OVERWRITE)
+                        "Routine replaced from the pasted plan."
+                    else "Pasted plan merged into your routine."
+                )
+            }.onFailure {
+                // Surface the parser's own complaint: "missing field 'exercises'" tells the user
+                // far more about what the model got wrong than a generic failure would.
+                _state.value = _state.value.copy(
+                    message = "That JSON did not fit the schema: ${it.message}"
+                )
+            }
+        }
+    }
 
     companion object {
         /**

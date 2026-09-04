@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,9 +26,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mreddy.liftz.LiftzApp
+import com.mreddy.liftz.data.json.JsonPort
 import com.mreddy.liftz.domain.Coach
 import com.mreddy.liftz.ui.common.factoryOf
 import com.mreddy.liftz.ui.theme.LiftzGreen
@@ -64,6 +70,7 @@ fun CoachScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var pasted by remember { mutableStateOf("") }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -163,8 +170,74 @@ fun CoachScreen(
             }
         }
 
+        /* ---- bring the answer back ---- */
+        item {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Paste the plan back in", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Most free assistants hand you a code block, not a file. Paste the whole " +
+                            "reply here — prose and ``` fences included — and the JSON is found " +
+                            "inside it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = pasted,
+                        onValueChange = { pasted = it },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 110.dp),
+                        placeholder = { Text("Paste here", style = MaterialTheme.typography.bodySmall) },
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { pasted = readClipboard(context) ?: pasted },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("From clipboard") }
+                        OutlinedButton(
+                            onClick = { pasted = "" },
+                            enabled = pasted.isNotBlank(),
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Clear") }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.importPasted(pasted, JsonPort.ImportMode.MERGE)
+                                pasted = ""
+                            },
+                            enabled = pasted.isNotBlank(),
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Merge") }
+                        Button(
+                            onClick = {
+                                viewModel.importPasted(pasted, JsonPort.ImportMode.OVERWRITE)
+                                pasted = ""
+                            },
+                            enabled = pasted.isNotBlank(),
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Replace") }
+                    }
+                    Text(
+                        "Merge keeps what you already have and adds to it. Replace swaps the " +
+                            "routine definition out entirely — your logged history is kept either " +
+                            "way.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         item { Spacer(Modifier.height(28.dp)) }
     }
+}
+
+private fun readClipboard(context: Context): String? {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+    val clip = clipboard?.primaryClip ?: return null
+    if (clip.itemCount == 0) return null
+    return clip.getItemAt(0).coerceToText(context)?.toString()
 }
 
 @Composable
