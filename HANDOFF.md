@@ -20,8 +20,10 @@ Keep this file updated. Every completed piece = one git commit + one line in the
   Store submission prep is now underway (release signing, listing copy, privacy policy — see
   `PLAY_STORE_LISTING.md`). The account creation, screenshots, and actual Console submission are
   not done yet — that file's status table tracks exactly what's left and what needs a human.
-- **Stack:** Kotlin, Jetpack Compose, Room (single source of truth), Jetpack Glance (Phase 2 widget).
-  No Firebase, no backend, no network calls anywhere.
+- **Stack:** Kotlin, Jetpack Compose, Room (single source of truth), Jetpack Glance (widget),
+  DataStore (UI prefs only). No Firebase, no backend, and no network calls: the app holds
+  ACCESS_NETWORK_STATE (read-only, for the offline indicator) but deliberately does NOT hold
+  INTERNET, so it is incapable of sending anything off the device.
 - **Package:** `com.mreddy.liftz` — sources under `app/src/main/java/com/mreddy/liftz/`.
 - **Gradle:** Kotlin DSL + version catalog at `gradle/libs.versions.toml`. AGP 8.7.3, Kotlin 2.0.21, KSP, Room 2.6.1.
 - **minSdk 26, compileSdk/targetSdk 35, JVM target 17.**
@@ -33,8 +35,6 @@ Keep this file updated. Every completed piece = one git commit + one line in the
   - A full `--rerun-tasks` clean rebuild is warning-free and green end to end.
   - Totals are now **49/49 Kotlin unit tests**, **45/45 `engine_sim.py`**, and
     **2/2 migrations** verified by `tools/migration_check.py`.
-  - `MigrationsTest` (4 cases) and 8 new mixed-rung / weighted-rung cases were added, so the totals
-    are now **35/35 Kotlin unit tests** and **40/40 in `engine_sim.py`**.
   - The two known warnings (JsonPort opt-in, deprecated `Icons.Filled.Undo`) are fixed, so a forced
     `./gradlew :app:compileDebugKotlin --rerun` now emits **zero `w:` lines**. Keep it that way.
   The old "nothing has ever been compiled, expect import nits" caveat is obsolete. It compiles and
@@ -55,19 +55,26 @@ app/src/main/java/com/mreddy/liftz/
   data/seed/SeedData.kt  The real starting routine, written on first DB create
   data/repo/             LiftzRepository — the one place UI talks to for data
   data/json/             Export/import models + JsonPort (kotlinx.serialization)
+  data/prefs/UiPrefs.kt  DataStore: theme mode, offline-indicator toggle (NOT training data)
+  data/net/              Connectivity Flow for the offline indicator (read-only, no requests)
   domain/                Pure logic, no Android deps, unit testable:
                            ProgressionEngine.kt  the if-statement adaptive engine
                            TimeEstimator.kt      rolling-window time to completion
                            DayCompletion.kt      calendar green-fill maths (4 or 5 denominator)
-  ui/                    theme/, nav/, calendar/, workout/, exercise/, summary/, settings/, common/
-  widget/                Phase 2 Glance widget
+                           Calories.kt           Atwater 4/4/9, derived calories
+                           Coach.kt              rule-based insights over your own numbers
+  ui/                    theme/, nav/, calendar/, workout/, exercise/, summary/,
+                         coach/, stats/, settings/, common/
+  widget/                Glance macro widget
 app/src/test/java/...    JVM unit tests for the domain layer
+tools/engine_sim.py      Second implementation of the engine rules (cross-check)
+tools/migration_check.py Replays every Room migration against real SQLite, no device needed
 ```
 
 ## Status
 
-Phase 1 is COMPLETE, plus the Phase 2 widget stretch goal. Nothing has been compiled (no Android SDK
-in the authoring sandbox), so the remaining work is "open it, sync, fix compiler nits, run it".
+Phase 1 and the widget are complete and compile clean. Items 21-26 are the 2026-09-04 redesign
+session: none of that has been rendered on a phone yet (see Next actions).
 
 | # | Piece | State | Commit message |
 |---|-------|-------|----------------|
