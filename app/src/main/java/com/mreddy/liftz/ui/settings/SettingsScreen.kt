@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -28,6 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +90,9 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val themeMode by LiftzApp.prefs().themeMode.collectAsState(initial = ThemeMode.SYSTEM)
     val showOffline by LiftzApp.prefs().showOfflineIndicator.collectAsState(initial = false)
+    val syncStatus by LiftzApp.sync().status.collectAsState(initial = null)
+    var syncBusy by remember { mutableStateOf(false) }
+    var confirmRestore by remember { mutableStateOf(false) }
 
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -326,6 +333,93 @@ fun SettingsScreen(
             }
         }
 
+        /* ---- backup & restore ---- */
+        item {
+            Card {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Backup", fontWeight = FontWeight.SemiBold)
+                    val st = syncStatus
+                    Text(
+                        if (st?.isCloud == true) "Backing up to ${st.backendName}."
+                        else "Stored on this device only. It survives a bad import or a wrong " +
+                            "edit, but NOT uninstalling the app or losing the phone — for that, " +
+                            "export a JSON file above and keep it somewhere else.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        st?.lastBackupAtMs?.let { "Last backup: ${relativeTime(it)}" }
+                            ?: "No backup taken yet",
+                        fontSize = 12.sp
+                    )
+                    st?.lastRestoreAtMs?.let {
+                        Text(
+                            "Last restore: ${relativeTime(it)}",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    st?.lastError?.let {
+                        Text(
+                            it,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            syncBusy = true
+                            scope.launch {
+                                LiftzApp.sync().backUpNow()
+                                syncBusy = false
+                            }
+                        },
+                        enabled = !syncBusy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (syncBusy) "Working…" else "Back up now") }
+
+                    Spacer(Modifier.height(6.dp))
+                    if (!confirmRestore) {
+                        OutlinedButton(
+                            onClick = { confirmRestore = true },
+                            enabled = !syncBusy && st?.lastBackupAtMs != null,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Restore from backup") }
+                    } else {
+                        // Restore OVERWRITES, so it asks first rather than being one tap away
+                        // from replacing a routine the user just spent time on.
+                        Text(
+                            "This replaces your current routine and settings with the backup. " +
+                                "Anything changed since then is lost.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { confirmRestore = false },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Cancel") }
+                            Button(
+                                onClick = {
+                                    confirmRestore = false
+                                    syncBusy = true
+                                    scope.launch {
+                                        LiftzApp.sync().restoreNow()
+                                        syncBusy = false
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Overwrite") }
+                        }
+                    }
+                }
+            }
+        }
+
         /* ---- connectivity preview ---- */
         item {
             Card {
@@ -402,6 +496,21 @@ fun SettingsScreen(
         }
 
         item { Spacer(Modifier.height(30.dp)) }
+    }
+}
+
+/** "3 minutes ago" / "yesterday" — precise enough for a backup timestamp, no library needed. */
+private fun relativeTime(epochMs: Long): String {
+    val delta = System.currentTimeMillis() - epochMs
+    val minutes = delta / 60_000
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        minutes < 1 -> "just now"
+        minutes < 60 -> "$minutes ${if (minutes == 1L) "minute" else "minutes"} ago"
+        hours < 24 -> "$hours ${if (hours == 1L) "hour" else "hours"} ago"
+        days == 1L -> "yesterday"
+        else -> "$days days ago"
     }
 }
 
