@@ -24,7 +24,7 @@ None of these can be done from this repo. They need the Google account holder.
 
 | # | Task | The decision |
 |---|------|--------------|
-| 9 | **Seed data** | `SeedData.kt` ships *your* real routine — your pull-up level, your 10kg press, your 8kg RDL — as the default every stranger sees. Ship as-is, or swap in a neutral starter routine and keep yours as a JSON you import? |
+| 9 | ~~Seed data~~ | **DECIDED: blank slate.** New installs ship empty with an in-app routine builder and the AI hand-off as the two ways in. The old routine is opt-in from Settings as "the example routine". |
 | 10 | **Package name is permanent** | `com.mreddy.liftz` can never be changed after first publish. Speak now. |
 | 11 | **App name on the listing** | Currently "mreddyLiftz". Fine, but it is what people search for. |
 | 12 | **Screenshots** | I can capture and frame real ones from the device in a few minutes. Needs the phone plugged in. |
@@ -34,10 +34,10 @@ None of these can be done from this repo. They need the Google account holder.
 
 | # | Task | Why it matters |
 |---|------|----------------|
-| 14 | **Bump `versionCode`** | It is `1`, and it must increase on **every** upload. Play rejects a repeat. |
-| 15 | **`versionName` → `1.0.0`** | `0.1.0` reads as pre-alpha on a public listing. |
+| 14 | ~~Bump `versionCode`~~ | **DONE** — now `2`. Must still increase on every future upload. |
+| 15 | ~~`versionName` → `1.0.0`~~ | **DONE.** |
 | 16 | **Re-check Play's target API floor** | We are on `targetSdk = 35`. Google raises the minimum roughly every August; confirm 35 still clears it at upload time. |
-| 17 | **Run the app from a RELEASE build** | Everything so far has been tested on `debug`. Release differs: no debuggable overhead, different signing, faster cold start. It has never been launched. |
+| 17 | ~~Run from a RELEASE build~~ | **DONE.** Installed and launched clean at v1.0.0. Cold start **610ms vs 1280ms on debug** — 2.1x faster, which is a real chunk of the widget lag. |
 | 18 | **Decide on R8/minify** | `isMinifyEnabled = false`. Keeps stack traces readable, costs ~30-40% APK size. Fine to ship, worth a deliberate call. |
 | 19 | **Test the v2→v3 migration on a device with real data** | v1→v2 was verified live. v2→v3 has only been verified against SQLite on the desktop via `tools/migration_check.py`. |
 | 20 | **A pass on a second device** | Everything visual has been seen on exactly one phone (OnePlus 6, Android 9), which is also old enough that `cornerRadius` silently no-ops. |

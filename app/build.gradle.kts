@@ -26,8 +26,9 @@ android {
         applicationId = "com.mreddy.liftz"
         minSdk = 26          // Glance widgets + adaptive icons + java.time all fine from 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // Play requires this to INCREASE on every upload; a repeat is rejected outright.
+        versionCode = 2
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
