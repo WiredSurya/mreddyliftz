@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -26,7 +28,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mreddy.liftz.ui.calendar.CalendarScreen
 import com.mreddy.liftz.ui.exercise.ExerciseScreen
+import com.mreddy.liftz.ui.coach.CoachScreen
 import com.mreddy.liftz.ui.settings.SettingsScreen
+import com.mreddy.liftz.ui.stats.StatsScreen
 import com.mreddy.liftz.ui.summary.SummaryScreen
 import com.mreddy.liftz.ui.workout.WorkoutScreen
 import kotlinx.coroutines.launch
@@ -35,10 +39,10 @@ import java.time.LocalDate
 /** All navigation routes in one place. Days are passed around as epoch days (a plain Long). */
 object Routes {
     /**
-     * The three bottom-nav tabs are NOT separate nav destinations any more — they are pages of a
-     * swipeable pager living behind this single route. That is what makes left/right swiping
-     * between Calendar / Today / Profile work; with three independent NavHost destinations there
-     * is nothing for a horizontal drag to move between.
+     * The five bottom-nav tabs are NOT separate nav destinations — they are pages of a swipeable
+     * pager living behind this single route. That is what makes left/right swiping between
+     * Calendar / Today / Coach / Progress / Profile work; with independent NavHost destinations
+     * there is nothing for a horizontal drag to move between.
      */
     const val HOME = "home"
 
@@ -55,8 +59,10 @@ object Routes {
 /* Pager page indices. Order here is the left-to-right swipe order. */
 private const val PAGE_CALENDAR = 0
 private const val PAGE_TODAY = 1
-private const val PAGE_PROFILE = 2
-private const val PAGE_COUNT = 3
+private const val PAGE_COACH = 2
+private const val PAGE_PROGRESS = 3
+private const val PAGE_PROFILE = 4
+private const val PAGE_COUNT = 5
 
 private data class HomeTab(
     val label: String,
@@ -66,6 +72,8 @@ private data class HomeTab(
 private val homeTabs = listOf(
     HomeTab("Calendar", Icons.Filled.CalendarMonth),
     HomeTab("Today", Icons.Filled.FitnessCenter),
+    HomeTab("Coach", Icons.Filled.Lightbulb),
+    HomeTab("Progress", Icons.AutoMirrored.Filled.TrendingUp),
     HomeTab("Profile", Icons.Filled.Person)
 )
 
@@ -135,6 +143,16 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                                 navController.navigate(Routes.summary(today.toEpochDay()))
                             },
                             onBack = { }   // top-level page: nothing to go back to
+                        )
+
+                        PAGE_COACH -> CoachScreen()
+
+                        PAGE_PROGRESS -> StatsScreen(
+                            onExerciseClick = { exerciseId ->
+                                navController.navigate(
+                                    Routes.exercise(exerciseId, today.toEpochDay())
+                                )
+                            }
                         )
 
                         PAGE_PROFILE -> SettingsScreen()

@@ -560,4 +560,166 @@ class LiftzRepository(private val db: LiftzDatabase) {
         val restSeconds: Int,
         val pendingSuggestion: ProgressionSuggestionEntity?
     )
+
+    /* ---------------------------------------------------------------------------------------
+     * STATISTICS
+     * ------------------------------------------------------------------------------------- */
+
+    /**
+     * Everything the stats screen shows, assembled in one pass.
+     *
+     * Read-only: it reports history and never writes, re-evaluates progression, or mutates a
+     * suggestion. Streaks and adherence are computed over logged days only — a day you never
+     * opened the app is absent from daily_logs and is treated as "not tracked" rather than as a
+     * zero, so a holiday does not silently tank an average.
+     */
+    suspend fun stats(today: LocalDate = LocalDate.now()): Stats {
+        val goals = configDao.getGoals() ?: GoalsEntity()
+        val logs = dailyLogDao.getAll().sortedBy { it.epochDay }
+        // getAll() returns bare entities; the stats rows need levels too, so fetch with plan.
+        val plans = exerciseDao.getAll().mapNotNull { exerciseDao.getWithPlan(it.id) }
+
+        val workoutDays = logs.filter { it.isWorkoutDay }
+        val completedDays = workoutDays.filter { it.workoutCompleted }
+        val crownDays = logs.count { log ->
+            DayCompletion.of(
+                DayCompletion.Progress(
+                    waterMl = log.waterMl, proteinG = log.proteinG, carbsG = log.carbsG,
+                    fatG = log.fatG, calories = caloriesFor(log, goals),
+                    isWorkoutDay = log.isWorkoutDay, workoutCompleted = log.workoutCompleted,
+                    autoCalcCalories = goals.autoCalcCalories
+                ),
+                DayCompletion.Goals(
+                    goals.waterMl, goals.proteinG, goals.carbsG, goals.fatG, goals.calories
+                )
+            ).isCrown
+        }
+
+        val completedSet = completedDays.map { it.epochDay }.toSet()
+        val plannedSet = workoutDays.map { it.epochDay }.toSet()
+
+        val exercises = plans.map { ewp ->
+            val e = ewp.exercise
+            val history = historyFor(e.id, limit = 200)
+            val levelKey = e.currentLevelKey
+            val outcome = ProgressionEngine.evaluate(
+                snapshot(e, ewp.orderedLevels.map { it.levelKey }), history
+            )
+            ExerciseStat(
+                exerciseId = e.id,
+                name = e.name,
+                levelLabel = ewp.currentLevel?.displayName,
+                weightKg = e.currentWeightKg,
+                sessions = history.size,
+                personalRecord =
+                    ProgressionEngine.personalRecordAtLevel(history, levelKey, e.currentWeightKg),
+                lastReps = ProgressionEngine.baselineAtLevel(history, levelKey, e.currentWeightKg),
+                qualifyingStreak = (outcome as? ProgressionEngine.Outcome.Hold)?.qualifyingStreak
+                    ?: e.rollingWindow,
+                windowNeeded = e.rollingWindow,
+                readyToAdvance = outcome is ProgressionEngine.Outcome.AdvanceLevel ||
+                    outcome is ProgressionEngine.Outcome.AddWeight,
+                atTopOfLadder = outcome is ProgressionEngine.Outcome.TopOfLadder
+            )
+        }
+
+        return Stats(
+            trackedDays = logs.size,
+            workoutsPlanned = workoutDays.size,
+            workoutsCompleted = completedDays.size,
+            crownDays = crownDays,
+            currentStreak = streakEndingAt(today.toEpochDay(), plannedSet, completedSet),
+            longestStreak = longestStreak(plannedSet, completedSet),
+            avgWaterMl = logs.averageOfOrZero { it.waterMl },
+            avgProteinG = logs.averageOfOrZero { it.proteinG },
+            avgCarbsG = logs.averageOfOrZero { it.carbsG },
+            avgFatG = logs.averageOfOrZero { it.fatG },
+            avgCalories = logs.averageOfOrZero { caloriesFor(it, goals) },
+            goals = goals,
+            exercises = exercises
+        )
+    }
+
+    private inline fun List<DailyLogEntity>.averageOfOrZero(pick: (DailyLogEntity) -> Int): Int =
+        if (isEmpty()) 0 else sumOf(pick) / size
+
+    /**
+     * Consecutive completed training days counting back from today.
+     *
+     * Only days the routine actually planned a workout for can break a streak; rest days are
+     * skipped rather than counted as misses. Today is forgiving too — an unfinished workout today
+     * does not zero the streak, it just does not extend it yet.
+     */
+    private fun streakEndingAt(
+        todayEpoch: Long,
+        planned: Set<Long>,
+        completed: Set<Long>
+    ): Int {
+        var streak = 0
+        var day = todayEpoch
+        if (day in planned && day !in completed) day--   // today still in progress
+        while (day > todayEpoch - 400) {
+            if (day in planned) {
+                if (day in completed) streak++ else break
+            }
+            day--
+        }
+        return streak
+    }
+
+    private fun longestStreak(planned: Set<Long>, completed: Set<Long>): Int {
+        if (planned.isEmpty()) return 0
+        var best = 0
+        var run = 0
+        for (day in planned.sorted()) {
+            if (day in completed) {
+                run++
+                if (run > best) best = run
+            } else {
+                run = 0
+            }
+        }
+        return best
+    }
+
+    data class Stats(
+        val trackedDays: Int,
+        val workoutsPlanned: Int,
+        val workoutsCompleted: Int,
+        val crownDays: Int,
+        val currentStreak: Int,
+        val longestStreak: Int,
+        val avgWaterMl: Int,
+        val avgProteinG: Int,
+        val avgCarbsG: Int,
+        val avgFatG: Int,
+        val avgCalories: Int,
+        val goals: GoalsEntity,
+        val exercises: List<ExerciseStat>
+    ) {
+        val hasAnything: Boolean get() = trackedDays > 0 || exercises.any { it.sessions > 0 }
+        /** 0f..1f. Null when the routine has not planned a workout yet. */
+        val completionRate: Float?
+            get() = if (workoutsPlanned == 0) null
+            else workoutsCompleted.toFloat() / workoutsPlanned
+    }
+
+    data class ExerciseStat(
+        val exerciseId: String,
+        val name: String,
+        val levelLabel: String?,
+        val weightKg: Double?,
+        val sessions: Int,
+        val personalRecord: Int?,
+        val lastReps: Int?,
+        val qualifyingStreak: Int,
+        val windowNeeded: Int,
+        val readyToAdvance: Boolean,
+        val atTopOfLadder: Boolean
+    ) {
+        /** 0f..1f progress toward the next level/weight suggestion. */
+        val progressToNext: Float
+            get() = if (windowNeeded <= 0) 0f
+            else (qualifyingStreak.toFloat() / windowNeeded).coerceIn(0f, 1f)
+    }
 }
