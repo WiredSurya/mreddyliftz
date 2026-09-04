@@ -351,6 +351,28 @@ fun SettingsScreen(
             }
         }
 
+        /* ---- starting point ---- */
+        item {
+            Card {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Example routine", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "A worked full-body split using every feature the app has — a level " +
+                            "ladder, a weighted lift, and untracked core work. Load it to poke " +
+                            "at, then edit or delete whatever you like. New installs start empty " +
+                            "on purpose, so this is opt-in.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { viewModel.loadExample() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Load the example routine") }
+                }
+            }
+        }
+
         /* ---- backup & restore ---- */
         item {
             Card {

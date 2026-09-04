@@ -50,6 +50,15 @@ interface ExerciseDao {
     suspend fun getForDay(dayOfWeek: Int): List<ExerciseWithPlan>
 
     @Upsert suspend fun upsert(exercise: ExerciseEntity)
+
+    @Query("DELETE FROM exercises WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Query("SELECT COALESCE(MAX(orderIndex), -1) + 1 FROM exercises")
+    suspend fun nextOrderIndex(): Int
+
+    @Query("SELECT COUNT(*) FROM exercises WHERE id = :id")
+    suspend fun countWithId(id: String): Int
     @Upsert suspend fun upsertAll(exercises: List<ExerciseEntity>)
 
     @Query("UPDATE exercises SET currentLevelKey = :levelKey WHERE id = :exerciseId")
@@ -71,6 +80,9 @@ interface LevelDao {
     suspend fun getForExercise(exerciseId: String): List<LevelEntity>
 
     @Upsert suspend fun upsertAll(levels: List<LevelEntity>)
+
+    @Query("DELETE FROM levels WHERE exerciseId = :exerciseId")
+    suspend fun deleteForExercise(exerciseId: String)
 
     @Query("DELETE FROM levels") suspend fun clear()
 }
@@ -105,6 +117,18 @@ interface RoutineDao {
 
     @Query("DELETE FROM routine_days") suspend fun clearDays()
     @Query("DELETE FROM routine_day_exercises") suspend fun clearDayExercises()
+
+    @Query("DELETE FROM routine_day_exercises WHERE exerciseId = :exerciseId")
+    suspend fun clearDaysForExercise(exerciseId: String)
+
+    @Query("SELECT dayOfWeek FROM routine_day_exercises WHERE exerciseId = :exerciseId")
+    suspend fun daysForExercise(exerciseId: String): List<Int>
+
+    @Query("SELECT COUNT(*) FROM routine_day_exercises WHERE dayOfWeek = :dayOfWeek")
+    suspend fun exerciseCountForDay(dayOfWeek: Int): Int
+
+    @Query("UPDATE routine_days SET isWorkoutDay = :isWorkout WHERE dayOfWeek = :dayOfWeek")
+    suspend fun setIsWorkoutDay(dayOfWeek: Int, isWorkout: Boolean)
 }
 
 @Dao
@@ -186,6 +210,24 @@ interface DailyLogDao {
 
     @Query("SELECT * FROM daily_logs")
     suspend fun getAll(): List<DailyLogEntity>
+
+    /**
+     * Re-stamp the training-day flag on TODAY and later only.
+     *
+     * Past days deliberately keep the flag they were logged under: their calendar fill reflects
+     * what was actually planned at the time, and rewriting it would retroactively change whether
+     * a day you already completed counted as a crown.
+     */
+    @Query(
+        "UPDATE daily_logs SET isWorkoutDay = :isWorkout " +
+            "WHERE epochDay >= :fromEpochDay AND (epochDay - :mondayEpochDay) % 7 = :dayOffset"
+    )
+    suspend fun setIsWorkoutDayFrom(
+        isWorkout: Boolean,
+        fromEpochDay: Long,
+        mondayEpochDay: Long,
+        dayOffset: Int
+    )
 
     @Upsert suspend fun upsert(log: DailyLogEntity)
     @Upsert suspend fun upsertAll(logs: List<DailyLogEntity>)

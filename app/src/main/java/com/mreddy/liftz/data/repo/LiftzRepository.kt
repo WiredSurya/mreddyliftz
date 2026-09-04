@@ -15,6 +15,10 @@ import com.mreddy.liftz.data.db.SetLogEntity
 import com.mreddy.liftz.data.db.SetType
 import com.mreddy.liftz.data.db.SuggestionKind
 import com.mreddy.liftz.data.db.SuggestionStatus
+import com.mreddy.liftz.data.db.LevelEntity
+import com.mreddy.liftz.data.db.PlannedSetEntity
+import com.mreddy.liftz.data.db.RoutineDayExerciseEntity
+import com.mreddy.liftz.data.seed.SeedData
 import com.mreddy.liftz.domain.Calories
 import com.mreddy.liftz.domain.DayCompletion
 import com.mreddy.liftz.domain.ProgressionEngine
@@ -728,5 +732,191 @@ class LiftzRepository(private val db: LiftzDatabase) {
         val progressToNext: Float
             get() = if (windowNeeded <= 0) 0f
             else (qualifyingStreak.toFloat() / windowNeeded).coerceIn(0f, 1f)
+    }
+
+    /* ---------------------------------------------------------------------------------------
+     * BUILDING A ROUTINE BY HAND
+     *
+     * The app ships blank, so this is one of the two ways a routine ever comes into existence
+     * (the other being a JSON import from the Coach screen). Everything here writes the same
+     * tables the importer does, so a hand-built routine and an imported one are indistinguishable
+     * afterwards - there is no "manual mode" that behaves differently.
+     * ------------------------------------------------------------------------------------- */
+
+    /** Everything the editor collects. Flat on purpose: no partially-built entities escape it. */
+    data class ExerciseDraft(
+        val existingId: String? = null,
+        val name: String,
+        val type: ExerciseType,
+        val setType: SetType,
+        val plannedSets: Int,
+        val goalReps: Int,
+        val hypertrophyMin: Int,
+        val hypertrophyMax: Int,
+        val rollingWindow: Int,
+        val restSecondsPerSet: Int,
+        /** BODYWEIGHT_PROGRESSION: ladder rungs, easiest first. */
+        val levelNames: List<String> = emptyList(),
+        val currentLevelIndex: Int = 0,
+        /** WEIGHTED. */
+        val currentWeightKg: Double? = null,
+        val weightIncrementKg: Double? = null,
+        val formDescription: String = "",
+        /** java.time.DayOfWeek values, 1 = Monday. */
+        val daysOfWeek: Set<Int> = emptySet()
+    )
+
+    /**
+     * Create or update an exercise and everything hanging off it.
+     *
+     * Levels and planned sets are rewritten wholesale rather than diffed. That is deliberate:
+     * a partial update could leave a planned set pointing at a level that no longer exists, and
+     * the progression engine would then be reading history for a rung that is gone.
+     *
+     * LOGGED HISTORY IS NEVER TOUCHED. Editing an exercise changes the plan, not what you did.
+     */
+    suspend fun saveExercise(draft: ExerciseDraft): String {
+        val id = draft.existingId ?: uniqueIdFor(draft.name)
+        val isLadder = draft.type == ExerciseType.BODYWEIGHT_PROGRESSION
+        val levelKeys = if (isLadder) draft.levelNames.map { slug(it) } else emptyList()
+
+        exerciseDao.upsert(
+            ExerciseEntity(
+                id = id,
+                name = draft.name.trim(),
+                type = draft.type,
+                setType = draft.setType,
+                hypertrophyMin = draft.hypertrophyMin,
+                hypertrophyMax = draft.hypertrophyMax,
+                rollingWindow = draft.rollingWindow.coerceIn(1, 30),
+                plannedSets = draft.plannedSets.coerceAtLeast(1),
+                currentLevelKey = levelKeys.getOrNull(draft.currentLevelIndex),
+                currentWeightKg = draft.currentWeightKg.takeIf { draft.type == ExerciseType.WEIGHTED },
+                weightIncrementKg = draft.weightIncrementKg.takeIf { draft.type == ExerciseType.WEIGHTED },
+                // CORE is the one type with no advancement logic at all.
+                progressionTracked = draft.type != ExerciseType.CORE,
+                restSecondsPerSet = draft.restSecondsPerSet,
+                formDescription = draft.formDescription.trim(),
+                orderIndex = exerciseDao.nextOrderIndex()
+            )
+        )
+
+        levelDao.deleteForExercise(id)
+        if (isLadder) {
+            levelDao.upsertAll(
+                draft.levelNames.mapIndexed { index, label ->
+                    LevelEntity(
+                        exerciseId = id,
+                        levelKey = levelKeys[index],
+                        orderIndex = index,
+                        displayName = label.trim()
+                    )
+                }
+            )
+        }
+
+        plannedSetDao.deleteForExercise(id)
+        plannedSetDao.insertAll(
+            (0 until draft.plannedSets.coerceAtLeast(1)).map { index ->
+                PlannedSetEntity(
+                    exerciseId = id,
+                    setIndex = index,
+                    setType = draft.setType,
+                    goalReps = draft.goalReps,
+                    levelKeyOverride = null,
+                    label = ""
+                )
+            }
+        )
+
+        assignToDays(id, draft.daysOfWeek)
+        return id
+    }
+
+    /**
+     * Put an exercise on a set of weekdays, and keep `routine_days.isWorkoutDay` honest.
+     *
+     * A day is a training day exactly when something is scheduled on it. Keeping that derived
+     * rather than separately configured is what stops the calendar showing a 5-goal training day
+     * with nothing to actually do on it.
+     */
+    suspend fun assignToDays(exerciseId: String, days: Set<Int>) {
+        val previous = routineDao.daysForExercise(exerciseId).toSet()
+        routineDao.clearDaysForExercise(exerciseId)
+        if (days.isNotEmpty()) {
+            routineDao.upsertDayExercises(
+                days.map { day ->
+                    RoutineDayExerciseEntity(dayOfWeek = day, exerciseId = exerciseId, orderIndex = 0)
+                }
+            )
+        }
+        (previous + days).forEach { refreshWorkoutDayFlag(it) }
+    }
+
+    /**
+     * Keep both places the training-day flag lives in agreement.
+     *
+     * It is stored twice on purpose: on `routine_days` as the plan, and snapshotted onto each
+     * `daily_logs` row so the calendar denominator is fixed at the moment a day is first touched.
+     * That snapshot is what goes stale when the routine changes afterwards — schedule an exercise
+     * onto today and today's log still says "rest day", so the calendar shows 4 goals for a day
+     * that now has a workout in it.
+     *
+     * Only today and later are re-stamped. Past days keep what they were logged under, because
+     * their fill should reflect what was actually planned then.
+     */
+    private suspend fun refreshWorkoutDayFlag(dayOfWeek: Int) {
+        val isWorkout = routineDao.exerciseCountForDay(dayOfWeek) > 0
+        routineDao.setIsWorkoutDay(dayOfWeek, isWorkout)
+
+        val today = LocalDate.now()
+        // Any Monday gives a stable anchor for the weekday modulo; epoch day 0 was a Thursday.
+        val anchorMonday = LocalDate.of(1970, 1, 5)
+        dailyLogDao.setIsWorkoutDayFrom(
+            isWorkout = isWorkout,
+            fromEpochDay = today.toEpochDay(),
+            mondayEpochDay = anchorMonday.toEpochDay(),
+            dayOffset = dayOfWeek - 1
+        )
+    }
+
+    suspend fun daysForExercise(exerciseId: String): Set<Int> =
+        routineDao.daysForExercise(exerciseId).toSet()
+
+    /**
+     * Remove an exercise and its plan.
+     *
+     * Logged sessions are left alone on purpose - deleting an exercise you did for months should
+     * not silently rewrite what you actually did. They simply stop being scheduled.
+     */
+    suspend fun deleteExercise(exerciseId: String) {
+        val days = routineDao.daysForExercise(exerciseId).toSet()
+        routineDao.clearDaysForExercise(exerciseId)
+        plannedSetDao.deleteForExercise(exerciseId)
+        levelDao.deleteForExercise(exerciseId)
+        exerciseDao.deleteById(exerciseId)
+        days.forEach { refreshWorkoutDayFlag(it) }
+    }
+
+    /** Writes the bundled example routine for someone who would rather edit than start empty. */
+    suspend fun loadExampleRoutine() = SeedData.loadExampleRoutine(db)
+
+    suspend fun exerciseWithPlan(id: String) = exerciseDao.getWithPlan(id)
+
+    suspend fun exerciseCount(): Int = exerciseDao.getAll().size
+
+    /** "Bulgarian Split Squat" -> "bulgarian_split_squat". Ids are also the JSON export keys. */
+    private fun slug(raw: String): String =
+        raw.trim().lowercase()
+            .replace(Regex("[^a-z0-9]+"), "_")
+            .trim('_')
+            .ifBlank { "exercise" }
+
+    private suspend fun uniqueIdFor(name: String): String {
+        val base = slug(name)
+        if (exerciseDao.countWithId(base) == 0) return base
+        var n = 2
+        while (exerciseDao.countWithId("${base}_$n") > 0) n++
+        return "${base}_$n"
     }
 }

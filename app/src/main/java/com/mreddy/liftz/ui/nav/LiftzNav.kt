@@ -37,6 +37,7 @@ import com.mreddy.liftz.LiftzApp
 import com.mreddy.liftz.ui.calendar.CalendarScreen
 import com.mreddy.liftz.ui.common.BlinkingOfflineIcon
 import com.mreddy.liftz.ui.common.OfflineBanner
+import com.mreddy.liftz.ui.editor.ExerciseEditorScreen
 import com.mreddy.liftz.ui.exercise.ExerciseScreen
 import com.mreddy.liftz.ui.coach.CoachScreen
 import com.mreddy.liftz.ui.settings.SettingsScreen
@@ -64,6 +65,10 @@ object Routes {
 
     const val SUMMARY = "summary/{epochDay}"
     fun summary(epochDay: Long) = "summary/$epochDay"
+
+    /** "new" creates; any other value edits that exercise. */
+    const val EDITOR = "editor/{exerciseId}"
+    fun editor(exerciseId: String? = null) = "editor/${exerciseId ?: "new"}"
 }
 
 /* Pager page indices. Order here is the left-to-right swipe order. */
@@ -161,6 +166,11 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                             onSummaryClick = {
                                 navController.navigate(Routes.summary(today.toEpochDay()))
                             },
+                            onAddExercise = { navController.navigate(Routes.editor()) },
+                            onEditExercise = { id -> navController.navigate(Routes.editor(id)) },
+                            onDesignWithAi = {
+                                scope.launch { pagerState.animateScrollToPage(PAGE_COACH) }
+                            },
                             onBack = { }   // top-level page: nothing to go back to
                         )
 
@@ -180,6 +190,16 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
             }
 
             composable(
+                route = Routes.EDITOR,
+                arguments = listOf(navArgument("exerciseId") { type = NavType.StringType })
+            ) { entry ->
+                val raw = entry.arguments?.getString("exerciseId")
+                ExerciseEditorScreen(
+                    exerciseId = raw?.takeIf { it != "new" },
+                    onDone = { navController.popBackStack() }
+                )
+            }
+            composable(
                 route = Routes.WORKOUT,
                 arguments = listOf(navArgument("epochDay") { type = NavType.LongType })
             ) { entry ->
@@ -190,6 +210,12 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                         navController.navigate(Routes.exercise(exerciseId, epochDay))
                     },
                     onSummaryClick = { navController.navigate(Routes.summary(epochDay)) },
+                    onAddExercise = { navController.navigate(Routes.editor()) },
+                    onEditExercise = { id -> navController.navigate(Routes.editor(id)) },
+                    onDesignWithAi = {
+                        navController.popBackStack(Routes.HOME, inclusive = false)
+                        scope.launch { pagerState.animateScrollToPage(PAGE_COACH) }
+                    },
                     onBack = { navController.popBackStack() }
                 )
             }

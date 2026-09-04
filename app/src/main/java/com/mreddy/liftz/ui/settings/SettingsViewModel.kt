@@ -45,6 +45,16 @@ class SettingsViewModel(
 
     fun clearMessage() { _message.value = null }
 
+    /**
+     * Writes the bundled example routine for someone who would rather edit something than start
+     * from an empty week. Not the default: new installs are blank on purpose.
+     */
+    fun loadExample() = viewModelScope.launch {
+        runCatching { repo.loadExampleRoutine() }
+            .onSuccess { _message.value = "Example routine loaded. Edit or delete anything in it." }
+            .onFailure { _message.value = "Could not load the example: ${it.message}" }
+    }
+
     fun saveGoals(goals: GoalsEntity) = viewModelScope.launch { repo.saveGoals(goals) }
 
     fun saveIncrements(increments: IncrementsEntity) =

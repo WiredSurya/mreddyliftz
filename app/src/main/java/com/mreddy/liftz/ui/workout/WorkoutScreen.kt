@@ -21,8 +21,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -66,6 +69,9 @@ fun WorkoutScreen(
     date: LocalDate,
     onExerciseClick: (String) -> Unit,
     onSummaryClick: () -> Unit,
+    onAddExercise: () -> Unit = {},
+    onEditExercise: (String) -> Unit = {},
+    onDesignWithAi: () -> Unit = {},
     onBack: () -> Unit,
     viewModel: WorkoutViewModel = viewModel(
         key = "workout-${date.toEpochDay()}",
@@ -168,7 +174,19 @@ fun WorkoutScreen(
 
         /* ---- the queue ---- */
         items(state.rows, key = { it.plan.exercise.id }) { row ->
-            QueueRowCard(row = row, onClick = { onExerciseClick(row.plan.exercise.id) })
+            QueueRowCard(
+                row = row,
+                onClick = { onExerciseClick(row.plan.exercise.id) },
+                onEdit = { onEditExercise(row.plan.exercise.id) }
+            )
+        }
+
+        if (state.rows.isNotEmpty()) {
+            item {
+                OutlinedButton(onClick = onAddExercise, modifier = Modifier.fillMaxWidth()) {
+                    Text("Add an exercise")
+                }
+            }
         }
 
         /* ---- post-workout summary ---- */
@@ -206,11 +224,33 @@ fun WorkoutScreen(
 
         if (state.rows.isEmpty()) {
             item {
-                Text(
-                    "Rest day. Macros only.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 24.dp)
-                )
+                // The app ships blank, so an empty day is the FIRST thing a new user sees. It has
+                // to offer both routes forward rather than reading like a dead end.
+                Card(Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            if (state.isWorkoutDay) "Nothing scheduled today"
+                            else "No training scheduled for today",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            "Your macros are tracked every day regardless. To train, build a " +
+                                "routine — either add exercises yourself, or describe what you " +
+                                "want to an assistant and import the plan it writes.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(onClick = onAddExercise, modifier = Modifier.fillMaxWidth()) {
+                            Text("Add an exercise")
+                        }
+                        OutlinedButton(onClick = onDesignWithAi, modifier = Modifier.fillMaxWidth()) {
+                            Text("Design it with AI")
+                        }
+                    }
+                }
             }
         }
 
@@ -226,7 +266,7 @@ fun WorkoutScreen(
  *   UPCOMING    plain, shows planned sets and time estimate
  */
 @Composable
-private fun QueueRowCard(row: QueueRow, onClick: () -> Unit) {
+private fun QueueRowCard(row: QueueRow, onClick: () -> Unit, onEdit: () -> Unit = {}) {
     val highlighted = row.state == QueueState.IN_PROGRESS
     val dimmed = row.state == QueueState.COMPLETED
 
@@ -284,6 +324,15 @@ private fun QueueRowCard(row: QueueRow, onClick: () -> Unit) {
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            // Tapping the row logs the exercise; editing its definition is a separate, quieter
+            // action so the common case stays a single tap on a big target.
+            IconButton(onClick = onEdit) {
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = "Edit ${row.plan.exercise.name}",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         if (row.state == QueueState.IN_PROGRESS) {
             LinearProgressIndicator(

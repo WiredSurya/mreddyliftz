@@ -230,14 +230,19 @@ object SeedData {
      * RoutineDayEntity.isWorkoutDay, so changing this changes the maths automatically.
      */
 
+    /**
+     * A blank week. Every day starts as a rest day and becomes a training day the moment an
+     * exercise is assigned to it, so the calendar's 4-goal denominator is right from day one
+     * without anyone having to configure a split first.
+     */
     val routineDays: List<RoutineDayEntity> = listOf(
-        RoutineDayEntity(1, true, "Full body A"),
-        RoutineDayEntity(2, false, "Rest"),
-        RoutineDayEntity(3, true, "Full body B"),
-        RoutineDayEntity(4, false, "Rest"),
-        RoutineDayEntity(5, true, "Full body C"),
-        RoutineDayEntity(6, false, "Rest"),
-        RoutineDayEntity(7, false, "Rest")
+        RoutineDayEntity(1, false, "Monday"),
+        RoutineDayEntity(2, false, "Tuesday"),
+        RoutineDayEntity(3, false, "Wednesday"),
+        RoutineDayEntity(4, false, "Thursday"),
+        RoutineDayEntity(5, false, "Friday"),
+        RoutineDayEntity(6, false, "Saturday"),
+        RoutineDayEntity(7, false, "Sunday")
     )
 
     private val workoutOrder = listOf(
@@ -255,14 +260,47 @@ object SeedData {
     val goals = GoalsEntity(id = 0, waterMl = 3000, proteinG = 140, carbsG = 250, calories = 2600)
     val increments = IncrementsEntity(id = 0, waterMl = 250, proteinG = 10, carbsG = 10)
 
-    /** Called once, from the Room onCreate callback. */
+    /**
+     * Called once, from the Room onCreate callback.
+     *
+     * NEW INSTALLS GET A BLANK SLATE. Only the week skeleton and generic macro defaults are
+     * written - no exercises, no levels, no planned sets.
+     *
+     * The exercise definitions above are kept as a REFERENCE, not as the shipped default. They
+     * were one person's real training numbers, and shipping them meant every stranger who
+     * installed the app opened it to somebody else's pull-up level and working weights. They stay
+     * in the file because they are the worked example of every field the schema supports, and
+     * because `mreddyliftz_export_template.json` mirrors them for anyone who wants a starting
+     * point - but importing that is now a choice, not the default.
+     *
+     * A user fills this in one of two ways, both first-class: build it by hand in the app, or
+     * hand their goals to an assistant from the Coach screen and import what comes back.
+     */
     suspend fun seed(db: LiftzDatabase) {
+        db.routineDao().upsertDays(routineDays)
+        db.configDao().upsertGoals(goals)
+        db.configDao().upsertIncrements(increments)
+    }
+
+    /**
+     * The reference routine, written on demand rather than at install. Settings offers this as
+     * "load the example routine" for anyone who would rather start from something than nothing.
+     */
+    suspend fun loadExampleRoutine(db: LiftzDatabase) {
         db.exerciseDao().upsertAll(exercises)
         db.levelDao().upsertAll(levels)
         db.plannedSetDao().insertAll(plannedSets)
-        db.routineDao().upsertDays(routineDays)
+        db.routineDao().upsertDays(
+            listOf(
+                RoutineDayEntity(1, true, "Full body A"),
+                RoutineDayEntity(2, false, "Rest"),
+                RoutineDayEntity(3, true, "Full body B"),
+                RoutineDayEntity(4, false, "Rest"),
+                RoutineDayEntity(5, true, "Full body C"),
+                RoutineDayEntity(6, false, "Rest"),
+                RoutineDayEntity(7, false, "Rest")
+            )
+        )
         db.routineDao().upsertDayExercises(routineDayExercises)
-        db.configDao().upsertGoals(goals)
-        db.configDao().upsertIncrements(increments)
     }
 }
