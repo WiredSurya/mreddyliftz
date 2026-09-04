@@ -15,6 +15,7 @@ import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
@@ -40,15 +41,10 @@ import androidx.glance.unit.ColorProvider
 import com.mreddy.liftz.MainActivity
 import com.mreddy.liftz.data.db.LiftzDatabase
 import com.mreddy.liftz.data.repo.LiftzRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /* Widget-local palette — its own small iOS-quick-action-style surface, not a miniature of the
  * app's own screens, so it gets its own (related but distinct) colors. */
@@ -84,6 +80,10 @@ class MacroWidget : GlanceAppWidget() {
         val goals = repo.observeGoals().first()
         val increments = repo.observeIncrements().first()
 
+        // Taps whose redraw has not reached the launcher yet, captured BEFORE drawing so the
+        // count rendered is exactly the count cleared afterwards.
+        val pending = WidgetFeedback.snapshot()
+
         provideContent {
             GlanceTheme {
                 val size = LocalSize.current
@@ -118,13 +118,13 @@ class MacroWidget : GlanceAppWidget() {
                     }
                     Spacer(GlanceModifier.height(8.dp))
                     MacroLine("Water", log?.waterMl ?: 0, goals.waterMl, "ml",
-                        LiftzRepository.Macro.WATER, increments.waterMl)
+                        LiftzRepository.Macro.WATER, increments.waterMl, pending)
                     MacroLine("Protein", log?.proteinG ?: 0, goals.proteinG, "g",
-                        LiftzRepository.Macro.PROTEIN, increments.proteinG)
+                        LiftzRepository.Macro.PROTEIN, increments.proteinG, pending)
                     MacroLine("Carbs", log?.carbsG ?: 0, goals.carbsG, "g",
-                        LiftzRepository.Macro.CARBS, increments.carbsG)
+                        LiftzRepository.Macro.CARBS, increments.carbsG, pending)
                     MacroLine("Fat", log?.fatG ?: 0, goals.fatG, "g",
-                        LiftzRepository.Macro.FAT, increments.fatG)
+                        LiftzRepository.Macro.FAT, increments.fatG, pending)
                     if (showCalories) {
                         if (goals.autoCalcCalories) {
                             // Derived from the macros above, so it is a read-out with no buttons.
@@ -136,7 +136,7 @@ class MacroWidget : GlanceAppWidget() {
                             )
                         } else {
                             MacroLine("Calories", log?.calories ?: 0, goals.calories, "kcal",
-                                LiftzRepository.Macro.CALORIES, increments.calories)
+                                LiftzRepository.Macro.CALORIES, increments.calories, pending)
                         }
                     }
                     if (showWorkout && log?.isWorkoutDay == true) {
@@ -197,30 +197,57 @@ private fun MacroLine(
     target: Int,
     unit: String,
     macro: LiftzRepository.Macro,
-    step: Int
+    step: Int,
+    pending: Map<String, Int> = emptyMap()
 ) {
     val hit = target <= 0 || current >= target
+    val waiting = pending[macro.name] ?: 0
     Row(
         modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = GlanceModifier.defaultWeight()) {
-            Text(
-                label,
-                style = TextStyle(color = ColorProvider(WidgetMuted), fontWeight = FontWeight.Medium)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    label,
+                    style = TextStyle(
+                        color = ColorProvider(WidgetMuted),
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+                if (waiting > 0) {
+                    Spacer(GlanceModifier.width(6.dp))
+                    // One dot per tap the launcher has not caught up with yet, capped so a long
+                    // burst does not overflow the row.
+                    repeat(waiting.coerceAtMost(4)) {
+                        Box(
+                            GlanceModifier
+                                .size(5.dp)
+                                .background(WidgetOrange)
+                                .cornerRadius(3.dp)
+                        ) {}
+                        Spacer(GlanceModifier.width(3.dp))
+                    }
+                }
+            }
             Text(
                 "$current/$target $unit",
                 style = TextStyle(
-                    // Bigger and bolder than a plain label: the closest a RemoteViews-based
-                    // widget can get to "make the changed number noticeable" without a real
-                    // animation API (Glance/RemoteViews has none — see the widget lag note in
-                    // HANDOFF.md for why an odometer-roll animation isn't possible here at all;
-                    // that lives on the in-app macro card instead).
                     color = ColorProvider(if (hit) WidgetGreen else WidgetOnDark),
                     fontWeight = FontWeight.Bold
                 )
             )
+            if (waiting > 0) {
+                // An INDETERMINATE progress bar is the one genuinely animated thing a widget can
+                // show: it becomes a RemoteViews ProgressBar, which the launcher animates in its
+                // own process with no redraw from us. Everything else in a widget is a still
+                // frame, which is why the moving dot could not be done as drawn.
+                LinearProgressIndicator(
+                    modifier = GlanceModifier.fillMaxWidth().height(2.dp),
+                    color = ColorProvider(WidgetOrange),
+                    backgroundColor = ColorProvider(WidgetMinusBg)
+                )
+            }
         }
         RoundButton(symbol = "-", background = WidgetMinusBg, macro = macro, delta = -step)
         Spacer(GlanceModifier.width(8.dp))
@@ -257,23 +284,25 @@ private fun RoundButton(symbol: String, background: Color, macro: LiftzRepositor
 }
 
 /**
- * Applies the +/- tap straight to Room (always, immediately — that write is never delayed or
- * skipped), then asks Glance to redraw the widget.
+ * Applies the +/- tap straight to Room, then redraws the widget.
  *
- * The REDRAW is debounced, and that is the fix for the "10-30 second lag after a burst of taps"
- * bug: every tap used to trigger its own full [MacroWidget.update] — a full re-provideGlance,
- * i.e. three fresh Room Flow reads plus a full RemoteViews rebuild and push through
- * AppWidgetManager. Firing that once per rapid tap queues up a backlog, and Android (more
- * aggressively under some OEMs' battery-optimization builds, OnePlus/OxygenOS included) rate-
- * limits how often a widget's RemoteViews can actually be pushed to the launcher — so a burst of
- * 10-20 taps could genuinely take that long to fully drain. Coalescing to ONE redraw per burst
- * (the trailing tap, after a short quiet period) fixes the app-side half of that: data is always
- * correct immediately, and the widget converges to the right on-screen number promptly once you
- * stop tapping, instead of visibly lagging behind for the length of the whole burst.
+ * THE COALESCING HAS TO HAPPEN *INSIDE* onAction, AND THAT IS THE WHOLE TRICK.
  *
- * The other, non-code half: if this is still slow on a specific phone, check
- * Settings -> Apps -> mreddyLiftz -> Battery -> Unrestricted. OxygenOS in particular is known to
- * throttle background app-widget updates hard under its default battery management.
+ * The obvious optimisation — launch the redraw into a background scope with a delay so a burst
+ * of taps collapses into one push — is wrong here, and measurably so. An ActionCallback's process
+ * is only guaranteed to be alive until onAction RETURNS. Deferring the redraw into a detached
+ * coroutine means the process is frequently torn down before the delay elapses, so the redraw
+ * never happens at all. Measured on a OnePlus 6: five rapid taps wrote 1500 to the database
+ * correctly, and the widget was still showing 750 seven seconds later, permanently stale until
+ * something else forced an update.
+ *
+ * So the delay is awaited inside onAction instead, which keeps the process alive for it. A ticket
+ * counter does the coalescing: every tap takes a ticket, waits briefly, and then only redraws if
+ * no newer tap has arrived meanwhile. Superseded taps return without drawing, the last tap of a
+ * burst always draws, and no update is ever silently lost.
+ *
+ * The Room write is never delayed or skipped — it happens immediately on every tap, before any of
+ * this — so the data is correct even if a redraw is superseded.
  */
 class AdjustMacroAction : ActionCallback {
     override suspend fun onAction(
@@ -283,27 +312,36 @@ class AdjustMacroAction : ActionCallback {
     ) {
         val macroName = parameters[MACRO] ?: return
         val delta = parameters[DELTA] ?: return
+
+        // Instant, before any database or drawing work: this runs in the app's process, so the
+        // tick lands in milliseconds regardless of how long the launcher takes to repaint.
+        WidgetFeedback.tick(context)
+        WidgetFeedback.tapRegistered(macroName)
+
         val repo = LiftzRepository(LiftzDatabase.get(context))
         repo.adjustMacro(LocalDate.now(), LiftzRepository.Macro.valueOf(macroName), delta)
-        scheduleDebouncedRedraw(context, glanceId)
+
+        val myTicket = ticket.incrementAndGet()
+        delay(COALESCE_MS)
+        // A newer tap arrived while waiting; it is still running and will draw the final state.
+        if (ticket.get() != myTicket) return
+
+        val rendered = WidgetFeedback.snapshot()
+        MacroWidget().update(context, glanceId)
+        rendered.forEach { (macro, count) -> WidgetFeedback.tapsRendered(macro, count) }
     }
 
     companion object {
         val MACRO = ActionParameters.Key<String>("macro")
         val DELTA = ActionParameters.Key<Int>("delta")
 
-        private const val DEBOUNCE_MS = 250L
-        private val debounceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        private val pendingRedraws = ConcurrentHashMap<GlanceId, Job>()
-
-        private fun scheduleDebouncedRedraw(context: Context, glanceId: GlanceId) {
-            pendingRedraws[glanceId]?.cancel()
-            pendingRedraws[glanceId] = debounceScope.launch {
-                delay(DEBOUNCE_MS)
-                MacroWidget().update(context, glanceId)
-                pendingRedraws.remove(glanceId)
-            }
-        }
+        /**
+         * Long enough to swallow a fast double-tap, short enough to feel immediate. Every tap
+         * pays this before drawing, so it is deliberately well under the ~100ms that reads as
+         * instant.
+         */
+        private const val COALESCE_MS = 80L
+        private val ticket = AtomicInteger(0)
     }
 }
 
