@@ -1,6 +1,7 @@
 package com.mreddy.liftz.data.sync
 
 import android.content.Context
+import android.net.Uri
 import com.mreddy.liftz.data.db.LiftzDatabase
 import com.mreddy.liftz.data.json.JsonPort
 import com.mreddy.liftz.data.json.LiftzExport
@@ -15,6 +16,8 @@ data class SyncStatus(
     val lastBackupAtMs: Long?,
     val lastRestoreAtMs: Long?,
     val lastError: String?,
+    /** SAF tree URI of the chosen folder, null when backing up on-device. */
+    val folderUri: String?,
     val isCloud: Boolean
 )
 
@@ -36,14 +39,30 @@ data class SyncStatus(
 class SyncManager(
     private val context: Context,
     private val db: LiftzDatabase,
-    private val prefs: SyncPrefs,
-    private val backend: SyncBackend
+    private val prefs: SyncPrefs
 ) {
 
-    val status: Flow<SyncStatus> = prefs.status(backend.displayName, backend is LocalFileBackend)
+    /**
+     * Resolved per call rather than held, so choosing a folder in Settings takes effect on the
+     * very next backup without restarting anything.
+     *
+     * Falls back to on-device storage when no folder has been picked, so backup always works —
+     * there is no state where the button is present but does nothing.
+     */
+    private suspend fun backend(): SyncBackend {
+        val folder = prefs.backupFolderOnce()
+        return if (folder != null) {
+            FolderBackend(context, Uri.parse(folder))
+        } else {
+            LocalFileBackend(context)
+        }
+    }
+
+    val status: Flow<SyncStatus> = prefs.statusFlow()
 
     /** Take a snapshot of everything and hand it to the backend. */
     suspend fun backUpNow(): Result<SnapshotMeta> {
+        val backend = backend()
         if (!backend.isAvailable()) {
             val msg = "${backend.displayName} is not available right now"
             prefs.recordError(msg)
@@ -65,7 +84,7 @@ class SyncManager(
 
     /** Peek at what is stored without applying it, so the UI can confirm before overwriting. */
     suspend fun peek(): Result<SnapshotMeta?> = runCatching {
-        backend.download().getOrThrow()?.meta
+        backend().download().getOrThrow()?.meta
     }
 
     /**
@@ -75,7 +94,7 @@ class SyncManager(
      * Merging is available separately through the normal JSON import if that is what is wanted.
      */
     suspend fun restoreNow(): Result<Unit> = runCatching {
-        val stored = backend.download().getOrThrow()
+        val stored = backend().download().getOrThrow()
             ?: error("There is no backup stored yet")
         require(stored.meta.schemaVersion <= LiftzExport.SCHEMA_VERSION) {
             "That backup was written by a newer version of the app (schema " +

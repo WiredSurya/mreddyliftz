@@ -1,5 +1,6 @@
 package com.mreddy.liftz.ui.settings
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -39,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mreddy.liftz.LiftzApp
@@ -68,6 +71,7 @@ fun SettingsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -83,11 +87,25 @@ fun SettingsScreen(
 
     // Writes the reference template that ships in assets/ out to wherever the user picks, so the
     // documented schema is reachable from inside the app instead of only from the repo.
+    // Persistable grant: the folder is chosen once and keeps working across reboots.
+    val folderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+            scope.launch { LiftzApp.syncPrefs().setBackupFolder(uri.toString()) }
+        }
+    }
+
     val templateLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri -> uri?.let { viewModel.saveBundledTemplate(context, it) } }
 
-    val scope = rememberCoroutineScope()
     val themeMode by LiftzApp.prefs().themeMode.collectAsState(initial = ThemeMode.SYSTEM)
     val showOffline by LiftzApp.prefs().showOfflineIndicator.collectAsState(initial = false)
     val syncStatus by LiftzApp.sync().status.collectAsState(initial = null)
@@ -340,13 +358,39 @@ fun SettingsScreen(
                     Text("Backup", fontWeight = FontWeight.SemiBold)
                     val st = syncStatus
                     Text(
-                        if (st?.isCloud == true) "Backing up to ${st.backendName}."
-                        else "Stored on this device only. It survives a bad import or a wrong " +
-                            "edit, but NOT uninstalling the app or losing the phone — for that, " +
-                            "export a JSON file above and keep it somewhere else.",
+                        if (st?.isCloud == true)
+                            "Backing up to the folder you chose. Point that at a Drive, Dropbox " +
+                                "or OneDrive folder and their app syncs it off the phone for you — " +
+                                "no account needed here, and this app never sees your password."
+                        else "Stored on this device only right now. It survives a bad import or a " +
+                            "wrong edit, but NOT uninstalling the app or losing the phone. " +
+                            "Choose a folder below to fix that.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { folderLauncher.launch(null) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (st?.folderUri != null) "Change backup folder"
+                            else "Choose a backup folder"
+                        )
+                    }
+                    if (st?.folderUri != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                readableFolder(context, st.folderUri),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = {
+                                scope.launch { LiftzApp.syncPrefs().setBackupFolder(null) }
+                            }) { Text("Use device", fontSize = 11.sp) }
+                        }
+                    }
                     Spacer(Modifier.height(8.dp))
                     Text(
                         st?.lastBackupAtMs?.let { "Last backup: ${relativeTime(it)}" }
@@ -497,6 +541,23 @@ fun SettingsScreen(
 
         item { Spacer(Modifier.height(30.dp)) }
     }
+}
+
+/**
+ * Turns a SAF tree URI into something a person recognises.
+ *
+ * Raw tree URIs look like
+ * `content://com.android.providers.downloads.documents/tree/downloads`, which is meaningless on
+ * a settings screen. Ask the provider for the folder's real display name and fall back to the
+ * last path segment only if it will not answer.
+ */
+private fun readableFolder(context: Context, uri: String): String {
+    val name = runCatching {
+        DocumentFile.fromTreeUri(context, Uri.parse(uri))?.name
+    }.getOrNull()
+    if (!name.isNullOrBlank()) return "Saving to: $name"
+    val tail = Uri.decode(uri).substringAfterLast('/')
+    return "Saving to: ${tail.ifBlank { "the folder you chose" }}"
 }
 
 /** "3 minutes ago" / "yesterday" — precise enough for a backup timestamp, no library needed. */

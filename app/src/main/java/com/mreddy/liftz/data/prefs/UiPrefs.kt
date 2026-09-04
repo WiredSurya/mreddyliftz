@@ -73,17 +73,18 @@ class UiPrefs(private val context: Context) {
  */
 class SyncPrefs(private val context: Context) {
 
-    fun status(
-        backendName: String,
-        isLocalOnly: Boolean
-    ): Flow<com.mreddy.liftz.data.sync.SyncStatus> = context.uiPrefsDataStore.data.map { p ->
+    /** Status that follows the chosen folder, so the UI updates the moment one is picked. */
+    fun statusFlow(): Flow<com.mreddy.liftz.data.sync.SyncStatus> =
+        context.uiPrefsDataStore.data.map { p ->
+        val folder = p[KEY_BACKUP_FOLDER]?.takeIf { it.isNotBlank() }
         com.mreddy.liftz.data.sync.SyncStatus(
-            backendName = backendName,
+            backendName = if (folder != null) "your chosen folder" else "this device",
             backendAvailable = true,
+            folderUri = folder,
             lastBackupAtMs = p[KEY_LAST_BACKUP]?.takeIf { it > 0 },
             lastRestoreAtMs = p[KEY_LAST_RESTORE]?.takeIf { it > 0 },
             lastError = p[KEY_LAST_ERROR]?.takeIf { it.isNotBlank() },
-            isCloud = !isLocalOnly
+            isCloud = folder != null
         )
     }
 
@@ -108,10 +109,22 @@ class SyncPrefs(private val context: Context) {
         it[KEY_DEVICE_ID] = id
     }
 
+    /** SAF tree URI of the folder chosen for backups, or null if none has been picked. */
+    val backupFolder: Flow<String?> = context.uiPrefsDataStore.data.map {
+        it[KEY_BACKUP_FOLDER]?.takeIf { uri -> uri.isNotBlank() }
+    }
+
+    suspend fun backupFolderOnce(): String? = backupFolder.first()
+
+    suspend fun setBackupFolder(uri: String?) = context.uiPrefsDataStore.edit {
+        it[KEY_BACKUP_FOLDER] = uri.orEmpty()
+    }
+
     private companion object {
         val KEY_LAST_BACKUP = longPreferencesKey("sync_last_backup")
         val KEY_LAST_RESTORE = longPreferencesKey("sync_last_restore")
         val KEY_LAST_ERROR = stringPreferencesKey("sync_last_error")
         val KEY_DEVICE_ID = stringPreferencesKey("sync_device_id")
+        val KEY_BACKUP_FOLDER = stringPreferencesKey("sync_backup_folder")
     }
 }

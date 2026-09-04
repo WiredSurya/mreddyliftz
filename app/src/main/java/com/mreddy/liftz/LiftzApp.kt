@@ -5,7 +5,6 @@ import com.mreddy.liftz.data.db.LiftzDatabase
 import com.mreddy.liftz.data.net.Connectivity
 import com.mreddy.liftz.data.prefs.SyncPrefs
 import com.mreddy.liftz.data.prefs.UiPrefs
-import com.mreddy.liftz.data.sync.LocalFileBackend
 import com.mreddy.liftz.data.sync.SyncManager
 import com.mreddy.liftz.data.repo.LiftzRepository
 
@@ -18,6 +17,7 @@ class LiftzApp : Application() {
     val database: LiftzDatabase by lazy { LiftzDatabase.get(this) }
     val repository: LiftzRepository by lazy { LiftzRepository(database) }
     val uiPrefs: UiPrefs by lazy { UiPrefs(this) }
+    val syncPrefs: SyncPrefs by lazy { SyncPrefs(this) }
     val connectivity: Connectivity by lazy { Connectivity(this) }
 
     /**
@@ -25,7 +25,7 @@ class LiftzApp : Application() {
      * wired in — see docs/CLOUD_SYNC.md for exactly what that swap involves.
      */
     val syncManager: SyncManager by lazy {
-        SyncManager(this, database, SyncPrefs(this), LocalFileBackend(this))
+        SyncManager(this, database, syncPrefs)
     }
 
     override fun onCreate() {
@@ -39,6 +39,7 @@ class LiftzApp : Application() {
 
         fun repo(): LiftzRepository = instance.repository
         fun prefs(): UiPrefs = instance.uiPrefs
+        fun syncPrefs(): SyncPrefs = instance.syncPrefs
         fun connectivity(): Connectivity = instance.connectivity
         fun sync(): SyncManager = instance.syncManager
     }
