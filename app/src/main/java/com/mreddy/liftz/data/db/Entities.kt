@@ -193,6 +193,11 @@ data class DailyLogEntity(
     val waterMl: Int = 0,
     val proteinG: Int = 0,
     val carbsG: Int = 0,
+    val fatG: Int = 0,
+    /**
+     * Only meaningful when goals.autoCalcCalories is OFF. When it is on, calories are derived
+     * from protein/carbs/fat at read time and this column is ignored, not written.
+     */
     val calories: Int = 0,
     val isWorkoutDay: Boolean = false,
     /** True once every exercise planned for the day has a completed session. */
@@ -210,7 +215,18 @@ data class GoalsEntity(
     val waterMl: Int = 3000,
     val proteinG: Int = 140,
     val carbsG: Int = 250,
-    val calories: Int = 2600
+    /**
+     * Default picked to make the seeded targets add up: 4*140 + 4*250 + 9*115 = 2595 kcal,
+     * i.e. essentially the 2600 calorie goal that was already here. Without a fat target the
+     * calorie goal is unreachable, because protein and carbs alone only account for 1560.
+     */
+    val fatG: Int = 115,
+    val calories: Int = 2600,
+    /**
+     * When true (the default) calories are computed from the macros with the standard Atwater
+     * factors instead of being typed in by hand, and the Calories row becomes read-only.
+     */
+    val autoCalcCalories: Boolean = true
 )
 
 /** Per-click increments configured in Settings. Single row, id is always 0. */
@@ -221,6 +237,7 @@ data class IncrementsEntity(
     val proteinG: Int = 10,
     /** Placeholder default: no carb-tracking history to tune this from yet. */
     val carbsG: Int = 10,
+    val fatG: Int = 5,
     val calories: Int = 100,
     /** Rep increment is fixed at 1 by design and is NOT editable; kept here for clarity only. */
     val repIncrement: Int = 1

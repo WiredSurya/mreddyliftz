@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -40,6 +41,7 @@ import com.mreddy.liftz.LiftzApp
 import com.mreddy.liftz.data.db.ExerciseType
 import com.mreddy.liftz.data.json.JsonPort
 import com.mreddy.liftz.data.prefs.ThemeMode
+import com.mreddy.liftz.domain.Calories
 import com.mreddy.liftz.ui.common.factoryOf
 import kotlinx.coroutines.launch
 
@@ -134,6 +136,14 @@ fun SettingsScreen(
                                 )
                             )
                         })
+                    StepperRow("Fat", "${state.increments.fatG} g", step = 1,
+                        onChange = { d ->
+                            viewModel.saveIncrements(
+                                state.increments.copy(
+                                    fatG = (state.increments.fatG + d).coerceAtLeast(1)
+                                )
+                            )
+                        })
                     StepperRow("Calories", "${state.increments.calories} kcal", step = 25,
                         onChange = { d ->
                             viewModel.saveIncrements(
@@ -176,12 +186,52 @@ fun SettingsScreen(
                                 state.goals.copy(carbsG = (state.goals.carbsG + d).coerceAtLeast(0))
                             )
                         })
+                    StepperRow("Fat", "${state.goals.fatG} g", step = 5,
+                        onChange = { d ->
+                            viewModel.saveGoals(
+                                state.goals.copy(fatG = (state.goals.fatG + d).coerceAtLeast(0))
+                            )
+                        })
                     StepperRow("Calories", "${state.goals.calories} kcal", step = 50,
                         onChange = { d ->
                             viewModel.saveGoals(
                                 state.goals.copy(calories = (state.goals.calories + d).coerceAtLeast(0))
                             )
                         })
+
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Calculate calories from macros", fontSize = 14.sp)
+                            Text(
+                                "4 kcal/g protein and carbs, 9 kcal/g fat. Turn this off only if " +
+                                    "you would rather type calories in yourself.",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = state.goals.autoCalcCalories,
+                            onCheckedChange = { on ->
+                                viewModel.saveGoals(state.goals.copy(autoCalcCalories = on))
+                            }
+                        )
+                    }
+                    if (state.goals.autoCalcCalories) {
+                        val fromGoals = Calories.fromMacros(
+                            state.goals.proteinG, state.goals.carbsG, state.goals.fatG
+                        )
+                        Text(
+                            "Your macro goals add up to $fromGoals kcal against a " +
+                                "${state.goals.calories} kcal target." +
+                                if (fromGoals < state.goals.calories - 100)
+                                    "  Raise fat or carbs to close the gap."
+                                else "",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
                 }
             }
         }

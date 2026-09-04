@@ -34,7 +34,7 @@ data class LiftzExport(
     @SerialName("daily_logs") val dailyLogs: List<DailyLogJson> = emptyList(),
     @SerialName("sessions") val sessions: List<SessionJson> = emptyList()
 ) {
-    companion object { const val SCHEMA_VERSION = 2 }
+    companion object { const val SCHEMA_VERSION = 3 }
 }
 
 @Serializable
@@ -96,14 +96,18 @@ data class GoalsJson(
     @SerialName("water_ml") val waterMl: Int = 3000,
     @SerialName("protein_g") val proteinG: Int = 140,
     @SerialName("carbs_g") val carbsG: Int = 250,
-    val calories: Int = 2600
+    @SerialName("fat_g") val fatG: Int = 115,
+    val calories: Int = 2600,
+    /** When true, `calories` is a derived target rather than something logged by hand. */
+    @SerialName("auto_calc_calories") val autoCalcCalories: Boolean = true
 )
 
 @Serializable
 data class IncrementsJson(
     @SerialName("water_ml") val waterMl: Int = 250,
     @SerialName("protein_g") val proteinG: Int = 10,
-    @SerialName("carbs_g") val carbsG: Int = 10
+    @SerialName("carbs_g") val carbsG: Int = 10,
+    @SerialName("fat_g") val fatG: Int = 5
 )
 
 @Serializable
@@ -122,6 +126,7 @@ data class DailyLogJson(
     @SerialName("water_ml") val waterMl: Int = 0,
     @SerialName("protein_g") val proteinG: Int = 0,
     @SerialName("carbs_g") val carbsG: Int = 0,
+    @SerialName("fat_g") val fatG: Int = 0,
     val calories: Int = 0,
     @SerialName("is_workout_day") val isWorkoutDay: Boolean = false,
     @SerialName("workout_completed") val workoutCompleted: Boolean = false

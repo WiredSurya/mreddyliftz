@@ -129,8 +129,13 @@ object JsonPort {
             exportedAt = LocalDate.now().toString(),
             exercises = exercisesJson,
             coreExercises = coreJson,
-            goals = GoalsJson(goals.waterMl, goals.proteinG, goals.carbsG, goals.calories),
-            increments = IncrementsJson(increments.waterMl, increments.proteinG, increments.carbsG),
+            goals = GoalsJson(
+                goals.waterMl, goals.proteinG, goals.carbsG, goals.fatG,
+                goals.calories, goals.autoCalcCalories
+            ),
+            increments = IncrementsJson(
+                increments.waterMl, increments.proteinG, increments.carbsG, increments.fatG
+            ),
             routineDays = routineDays.map { day ->
                 RoutineDayJson(
                     dayOfWeek = day.dayOfWeek,
@@ -145,6 +150,7 @@ object JsonPort {
                     waterMl = l.waterMl,
                     proteinG = l.proteinG,
                     carbsG = l.carbsG,
+                    fatG = l.fatG,
                     calories = l.calories,
                     isWorkoutDay = l.isWorkoutDay,
                     workoutCompleted = l.workoutCompleted
@@ -271,7 +277,9 @@ object JsonPort {
                 waterMl = export.goals.waterMl,
                 proteinG = export.goals.proteinG,
                 carbsG = export.goals.carbsG,
-                calories = export.goals.calories
+                fatG = export.goals.fatG,
+                calories = export.goals.calories,
+                autoCalcCalories = export.goals.autoCalcCalories
             )
         )
         db.configDao().upsertIncrements(
@@ -279,7 +287,8 @@ object JsonPort {
                 id = 0,
                 waterMl = export.increments.waterMl,
                 proteinG = export.increments.proteinG,
-                carbsG = export.increments.carbsG
+                carbsG = export.increments.carbsG,
+                fatG = export.increments.fatG
             )
         )
 
@@ -306,6 +315,7 @@ object JsonPort {
                         waterMl = l.waterMl,
                         proteinG = l.proteinG,
                         carbsG = l.carbsG,
+                        fatG = l.fatG,
                         calories = l.calories,
                         isWorkoutDay = l.isWorkoutDay,
                         workoutCompleted = l.workoutCompleted

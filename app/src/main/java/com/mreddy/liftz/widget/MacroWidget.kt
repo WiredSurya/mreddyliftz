@@ -52,13 +52,12 @@ import java.util.concurrent.ConcurrentHashMap
 
 /* Widget-local palette — its own small iOS-quick-action-style surface, not a miniature of the
  * app's own screens, so it gets its own (related but distinct) colors. */
-private val WidgetBg = Color(0xFF1C1F24)
-private val WidgetCard = Color(0xFF262B32)
-private val WidgetOrange = Color(0xFFFF9500) // iOS system orange
-private val WidgetMinusBg = Color(0xFF3A414A)
-private val WidgetOnDark = Color(0xFFF2F4F6)
-private val WidgetMuted = Color(0xFF9AA5B1)
-private val WidgetGreen = Color(0xFF34C759) // iOS system green, for "goal hit"
+private val WidgetBg = Color(0xFF211C17)      // warm dark, matching the app's night surface
+private val WidgetOrange = Color(0xFFF97316)  // same action orange as the app
+private val WidgetMinusBg = Color(0xFF3A3129)
+private val WidgetOnDark = Color(0xFFF3EADC)
+private val WidgetMuted = Color(0xFFA79683)
+private val WidgetGreen = Color(0xFF5BC45F)   // goal hit
 
 private val SizeCompact = DpSize(250.dp, 110.dp)
 private val SizeMedium = DpSize(250.dp, 180.dp)
@@ -124,9 +123,21 @@ class MacroWidget : GlanceAppWidget() {
                         LiftzRepository.Macro.PROTEIN, increments.proteinG)
                     MacroLine("Carbs", log?.carbsG ?: 0, goals.carbsG, "g",
                         LiftzRepository.Macro.CARBS, increments.carbsG)
+                    MacroLine("Fat", log?.fatG ?: 0, goals.fatG, "g",
+                        LiftzRepository.Macro.FAT, increments.fatG)
                     if (showCalories) {
-                        MacroLine("Calories", log?.calories ?: 0, goals.calories, "kcal",
-                            LiftzRepository.Macro.CALORIES, increments.calories)
+                        if (goals.autoCalcCalories) {
+                            // Derived from the macros above, so it is a read-out with no buttons.
+                            ReadOnlyLine(
+                                "Calories",
+                                repo.caloriesFor(log, goals),
+                                goals.calories,
+                                "kcal"
+                            )
+                        } else {
+                            MacroLine("Calories", log?.calories ?: 0, goals.calories, "kcal",
+                                LiftzRepository.Macro.CALORIES, increments.calories)
+                        }
                     }
                     if (showWorkout && log?.isWorkoutDay == true) {
                         Spacer(GlanceModifier.height(6.dp))
@@ -151,6 +162,31 @@ class MacroWidget : GlanceAppWidget() {
                 }
             }
         }
+    }
+}
+
+/** A macro the widget shows but cannot edit, because the app computes it. */
+@Composable
+private fun ReadOnlyLine(label: String, current: Int, target: Int, unit: String) {
+    val hit = target <= 0 || current >= target
+    Row(
+        modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = GlanceModifier.defaultWeight()) {
+            Text(
+                label,
+                style = TextStyle(color = ColorProvider(WidgetMuted), fontWeight = FontWeight.Medium)
+            )
+            Text(
+                "$current/$target $unit",
+                style = TextStyle(
+                    color = ColorProvider(if (hit) WidgetGreen else WidgetOnDark),
+                    fontWeight = FontWeight.Bold
+                )
+            )
+        }
+        Text("auto", style = TextStyle(color = ColorProvider(WidgetMuted)))
     }
 }
 

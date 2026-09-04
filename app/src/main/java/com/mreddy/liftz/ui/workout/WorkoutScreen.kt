@@ -46,6 +46,7 @@ import com.mreddy.liftz.LiftzApp
 import com.mreddy.liftz.data.db.QueueState
 import com.mreddy.liftz.data.db.SuggestionKind
 import com.mreddy.liftz.data.repo.LiftzRepository
+import com.mreddy.liftz.domain.Calories
 import com.mreddy.liftz.domain.TimeEstimator
 import com.mreddy.liftz.ui.common.factoryOf
 import com.mreddy.liftz.ui.theme.LiftzGold
@@ -321,12 +322,68 @@ private fun MacroCard(state: WorkoutUiState, viewModel: WorkoutViewModel) {
                 onStep = { viewModel.adjustMacro(LiftzRepository.Macro.CARBS, it) }
             )
             MacroRow(
-                label = "Calories", unit = "kcal",
-                current = log?.calories ?: 0, target = state.goals.calories,
-                step = state.increments.calories,
-                onStep = { viewModel.adjustMacro(LiftzRepository.Macro.CALORIES, it) }
+                label = "Fat", unit = "g",
+                current = log?.fatG ?: 0, target = state.goals.fatG,
+                step = state.increments.fatG,
+                onStep = { viewModel.adjustMacro(LiftzRepository.Macro.FAT, it) }
             )
+            if (state.goals.autoCalcCalories) {
+                // Derived, so there is nothing to tap: showing +/- here would imply you can set
+                // calories independently of the macros they are computed from.
+                DerivedCalorieRow(
+                    current = Calories.fromMacros(
+                        proteinG = log?.proteinG ?: 0,
+                        carbsG = log?.carbsG ?: 0,
+                        fatG = log?.fatG ?: 0
+                    ),
+                    target = state.goals.calories
+                )
+            } else {
+                MacroRow(
+                    label = "Calories", unit = "kcal",
+                    current = log?.calories ?: 0, target = state.goals.calories,
+                    step = state.increments.calories,
+                    onStep = { viewModel.adjustMacro(LiftzRepository.Macro.CALORIES, it) }
+                )
+            }
         }
+    }
+}
+
+/** Calories when they are computed rather than entered: same shape as a MacroRow, no controls. */
+@Composable
+private fun DerivedCalorieRow(current: Int, target: Int) {
+    val hit = target <= 0 || current >= target
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Calories", fontSize = 14.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RollingNumber(
+                    value = current,
+                    fontSize = 12.sp,
+                    color = if (hit) LiftzGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    " / $target kcal",
+                    fontSize = 12.sp,
+                    color = if (hit) LiftzGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Text(
+            "auto",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    RoundedCornerShape(8.dp)
+                )
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }
 

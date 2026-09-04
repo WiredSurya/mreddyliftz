@@ -15,6 +15,7 @@ import com.mreddy.liftz.data.db.SetLogEntity
 import com.mreddy.liftz.data.db.SetType
 import com.mreddy.liftz.data.db.SuggestionKind
 import com.mreddy.liftz.data.db.SuggestionStatus
+import com.mreddy.liftz.domain.Calories
 import com.mreddy.liftz.domain.DayCompletion
 import com.mreddy.liftz.domain.ProgressionEngine
 import com.mreddy.liftz.domain.TimeEstimator
@@ -85,12 +86,14 @@ class LiftzRepository(private val db: LiftzDatabase) {
                         waterMl = log?.waterMl ?: 0,
                         proteinG = log?.proteinG ?: 0,
                         carbsG = log?.carbsG ?: 0,
-                        calories = log?.calories ?: 0,
+                        fatG = log?.fatG ?: 0,
+                        calories = caloriesFor(log, goals),
                         isWorkoutDay = isWorkoutDay,
-                        workoutCompleted = log?.workoutCompleted ?: false
+                        workoutCompleted = log?.workoutCompleted ?: false,
+                        autoCalcCalories = goals.autoCalcCalories
                     ),
                     goals = DayCompletion.Goals(
-                        goals.waterMl, goals.proteinG, goals.carbsG, goals.calories
+                        goals.waterMl, goals.proteinG, goals.carbsG, goals.fatG, goals.calories
                     )
                 )
                 CalendarDay(
@@ -134,6 +137,7 @@ class LiftzRepository(private val db: LiftzDatabase) {
             Macro.WATER -> log.copy(waterMl = (log.waterMl + delta).coerceAtLeast(0))
             Macro.PROTEIN -> log.copy(proteinG = (log.proteinG + delta).coerceAtLeast(0))
             Macro.CARBS -> log.copy(carbsG = (log.carbsG + delta).coerceAtLeast(0))
+            Macro.FAT -> log.copy(fatG = (log.fatG + delta).coerceAtLeast(0))
             Macro.CALORIES -> log.copy(calories = (log.calories + delta).coerceAtLeast(0))
         }
         dailyLogDao.upsert(updated)
@@ -147,12 +151,26 @@ class LiftzRepository(private val db: LiftzDatabase) {
             Macro.WATER -> log.copy(waterMl = v)
             Macro.PROTEIN -> log.copy(proteinG = v)
             Macro.CARBS -> log.copy(carbsG = v)
+            Macro.FAT -> log.copy(fatG = v)
             Macro.CALORIES -> log.copy(calories = v)
         }
         dailyLogDao.upsert(updated)
     }
 
-    enum class Macro { WATER, PROTEIN, CARBS, CALORIES }
+    enum class Macro { WATER, PROTEIN, CARBS, FAT, CALORIES }
+
+    /**
+     * The single place that decides what a day's calorie number is: derived from the macros when
+     * auto-calc is on, otherwise the hand-entered column. Everything that displays calories goes
+     * through here so the app, the widget and the summary screen cannot disagree.
+     */
+    fun caloriesFor(log: DailyLogEntity?, goals: GoalsEntity): Int = Calories.resolve(
+        autoCalc = goals.autoCalcCalories,
+        manualCalories = log?.calories ?: 0,
+        proteinG = log?.proteinG ?: 0,
+        carbsG = log?.carbsG ?: 0,
+        fatG = log?.fatG ?: 0
+    )
 
     /* ---------------------------------------------------------------------------------------
      * WORKOUT

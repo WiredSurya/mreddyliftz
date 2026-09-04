@@ -60,7 +60,7 @@ object Migrations {
      * Invariant, enforced by MigrationsTest: [ALL] holds a contiguous 1 -> 2 -> ... -> N chain
      * ending at this value.
      */
-    const val SCHEMA_VERSION = 2
+    const val SCHEMA_VERSION = 3
 
     /**
      * v1 -> v2: `set_logs.levelKey`.
@@ -75,6 +75,25 @@ object Migrations {
     }
 
     /**
+     * v2 -> v3: fat tracking, and calories that compute themselves.
+     *
+     * Calories previously had to be typed in by hand, which is the pain this removes. They could
+     * not be derived before because fat was not tracked at all, and protein+carbs alone account
+     * for only about 60% of a normal calorie intake - deriving from those two would have
+     * undercounted badly enough to make the calorie goal unreachable.
+     *
+     * All columns are NOT NULL with defaults, so existing rows stay valid and existing logged
+     * days keep every number they already had. Days logged before this migration simply have
+     * fatG = 0 until they are edited.
+     */
+    private val MIGRATION_2_3 = migration(2, 3) { db ->
+        db.execSQL("ALTER TABLE daily_logs ADD COLUMN fatG INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE goals ADD COLUMN fatG INTEGER NOT NULL DEFAULT 115")
+        db.execSQL("ALTER TABLE goals ADD COLUMN autoCalcCalories INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE increments ADD COLUMN fatG INTEGER NOT NULL DEFAULT 5")
+    }
+
+    /**
      * Every migration, in ascending order. Append, never rewrite.
      *
      * NOTE: this must stay the LAST declaration in the object. Kotlin initialises an object's
@@ -83,6 +102,7 @@ object Migrations {
      */
     val ALL: Array<Migration> = arrayOf(
         MIGRATION_1_2,
+        MIGRATION_2_3,
     )
 }
 

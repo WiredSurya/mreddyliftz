@@ -121,11 +121,15 @@ class WorkoutViewModel(
                 waterMl = log?.waterMl ?: 0,
                 proteinG = log?.proteinG ?: 0,
                 carbsG = log?.carbsG ?: 0,
-                calories = log?.calories ?: 0,
+                fatG = log?.fatG ?: 0,
+                calories = repo.caloriesFor(log, goals),
                 isWorkoutDay = isWorkoutDay,
-                workoutCompleted = log?.workoutCompleted ?: false
+                workoutCompleted = log?.workoutCompleted ?: false,
+                autoCalcCalories = goals.autoCalcCalories
             ),
-            DayCompletion.Goals(goals.waterMl, goals.proteinG, goals.carbsG, goals.calories)
+            DayCompletion.Goals(
+                goals.waterMl, goals.proteinG, goals.carbsG, goals.fatG, goals.calories
+            )
         )
 
         WorkoutUiState(

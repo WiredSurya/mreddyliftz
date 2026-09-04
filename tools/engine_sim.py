@@ -175,15 +175,36 @@ check("regressing resets target to that level's history", evaluate(down, hist)[0
 check("regressed baseline reads negative history", baseline(hist,"negative")==15)
 
 # --- day completion ---
-def day(water,protein,carbs,cal,workout_day,workout_done,g=(3000,140,250,2600)):
-    b=[water>=g[0],protein>=g[1],carbs>=g[2],cal>=g[3]]
+# Atwater factors, mirroring domain/Calories.kt.
+def kcal(protein, carbs, fat):
+    return max(protein,0)*4 + max(carbs,0)*4 + max(fat,0)*9
+
+def day(water,protein,carbs,fat,cal,workout_day,workout_done,auto=True,
+        g=(3000,140,250,115,2600)):
+    """
+    The fourth macro slot holds FAT when calories are auto-derived and CALORIES when they are
+    entered by hand - exactly one of the two, never both. That is what keeps the denominator at
+    5 on training days and 4 otherwise even though a macro was added.
+    """
+    b=[water>=g[0], protein>=g[1], carbs>=g[2]]
+    b.append(fat>=g[3] if auto else cal>=g[4])
     if workout_day: b.append(workout_done)
     return sum(b), len(b), sum(b)/len(b)
-check("workout day denominator 5", day(0,0,0,0,True,False)[1]==5)
-check("rest day denominator 4", day(0,0,0,0,False,False)[1]==4)
-check("3/5 = 0.6 fill", abs(day(3000,140,250,0,True,False)[2]-0.6)<1e-6)
-check("crown on 5/5", day(3200,150,260,2700,True,True)[2]==1.0)
-check("rest day crowns on 4", day(3000,140,250,2600,False,False)[2]==1.0)
+
+check("workout day denominator 5", day(0,0,0,0,0,True,False)[1]==5)
+check("rest day denominator 4", day(0,0,0,0,0,False,False)[1]==4)
+check("denominator still 5 with manual calories",
+      day(0,0,0,0,0,True,False,auto=False)[1]==5)
+check("3/5 = 0.6 fill", abs(day(3000,140,250,0,0,True,False)[2]-0.6)<1e-6)
+check("crown on 5/5", day(3200,150,260,120,2700,True,True)[2]==1.0)
+check("rest day crowns on 4", day(3000,140,250,115,2600,False,False)[2]==1.0)
+check("no crown when fat is missed",
+      day(3000,140,250,0,2600,False,False)[2]<1.0)
+
+# Atwater parity with the Kotlin
+check("atwater 4/4/9", (kcal(1,0,0),kcal(0,1,0),kcal(0,0,1))==(4,4,9))
+check("protein+carbs alone undershoot the 2600 goal", kcal(140,250,0)==1560)
+check("115g fat closes the gap", kcal(140,250,115)==2595)
 
 # --- time estimator ---
 def est(durs,w,sets,rest):
