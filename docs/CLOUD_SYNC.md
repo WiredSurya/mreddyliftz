@@ -2,8 +2,17 @@
 
 ## Where this stands
 
-The sync **pipeline is built and working**, with one deliberate limitation: the only backend
-right now writes to this device's private storage. Nothing goes off the phone yet.
+The sync **pipeline is built and working**, and there are now TWO backends:
+
+- **`FolderBackend`** — backs up into any folder you pick through Android's file picker. If that
+  folder lives inside Drive, Dropbox, OneDrive or Nextcloud, their app syncs it off the phone
+  for you. This needs no account setup, no API keys, no server, and this app never sees a
+  credential — only a folder handle you granted it. **Verified working on device.**
+- **`LocalFileBackend`** — the fallback when no folder has been chosen. App-private storage, so
+  it survives a bad import but not an uninstall.
+
+That covers "my data is safely off this phone" without any of the setup below. What it does NOT
+do is multi-device merge with an account, which is what the Firebase work is for.
 
 That is not a stub. `LocalFileBackend` is a real backup target — it saves you from a bad import
 or a wrong edit today — and more importantly it means the export → upload → download → restore
