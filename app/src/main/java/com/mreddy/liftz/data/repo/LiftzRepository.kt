@@ -115,6 +115,13 @@ class LiftzRepository(private val db: LiftzDatabase) {
      * DAILY LOG / MACROS
      * ------------------------------------------------------------------------------------- */
 
+    /* One-shot reads for the widget's redraw path. Collecting a Flow just to take its first
+     * value sets up and tears down a Room observer for nothing, and that cost lands on every
+     * widget tap, on a process that has usually just cold-started. */
+    suspend fun dailyLogOnce(date: LocalDate): DailyLogEntity? = dailyLogDao.get(date.toEpochDay())
+    suspend fun goalsOnce(): GoalsEntity = configDao.getGoals() ?: GoalsEntity()
+    suspend fun incrementsOnce(): IncrementsEntity = configDao.getIncrements() ?: IncrementsEntity()
+
     fun observeDailyLog(date: LocalDate): Flow<DailyLogEntity?> =
         dailyLogDao.observe(date.toEpochDay())
 

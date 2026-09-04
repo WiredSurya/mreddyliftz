@@ -8,14 +8,16 @@ import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import android.widget.RemoteViews
+import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
@@ -39,6 +41,7 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.mreddy.liftz.MainActivity
+import com.mreddy.liftz.R
 import com.mreddy.liftz.data.db.LiftzDatabase
 import com.mreddy.liftz.data.repo.LiftzRepository
 import kotlinx.coroutines.delay
@@ -76,9 +79,13 @@ class MacroWidget : GlanceAppWidget() {
         val today = LocalDate.now()
         repo.ensureDailyLog(today)
 
-        val log = repo.observeDailyLog(today).first()
-        val goals = repo.observeGoals().first()
-        val increments = repo.observeIncrements().first()
+        // Direct one-shot reads, NOT Flow.first(). Collecting a Room Flow spins up an
+        // observer, runs the query, emits and cancels — three times over, on a cold-started
+        // process, for data we only need one snapshot of. This is the redraw path, so it runs
+        // on every single tap.
+        val log = repo.dailyLogOnce(today)
+        val goals = repo.goalsOnce()
+        val increments = repo.incrementsOnce()
 
         // Taps whose redraw has not reached the launcher yet, captured BEFORE drawing so the
         // count rendered is exactly the count cleared afterwards.
@@ -238,14 +245,17 @@ private fun MacroLine(
                 )
             )
             if (waiting > 0) {
-                // An INDETERMINATE progress bar is the one genuinely animated thing a widget can
-                // show: it becomes a RemoteViews ProgressBar, which the launcher animates in its
-                // own process with no redraw from us. Everything else in a widget is a still
-                // frame, which is why the moving dot could not be done as drawn.
-                LinearProgressIndicator(
-                    modifier = GlanceModifier.fillMaxWidth().height(2.dp),
-                    color = ColorProvider(WidgetOrange),
-                    backgroundColor = ColorProvider(WidgetMinusBg)
+                // Orange dots tracking left and right across the row while the update is in
+                // flight. This is a ProgressBar with an AnimationDrawable behind it, embedded as
+                // raw RemoteViews because Glance cannot express a custom indeterminate drawable.
+                // It is the only way to get real motion into a widget: the launcher runs the
+                // animation on its own clock, in its own process, with no redraw from this app.
+                AndroidRemoteViews(
+                    remoteViews = RemoteViews(
+                        LocalContext.current.packageName,
+                        R.layout.widget_bouncing_dots
+                    ),
+                    modifier = GlanceModifier.fillMaxWidth().height(8.dp)
                 )
             }
         }
@@ -317,18 +327,27 @@ class AdjustMacroAction : ActionCallback {
         // tick lands in milliseconds regardless of how long the launcher takes to repaint.
         WidgetFeedback.tick(context)
         WidgetFeedback.tapRegistered(macroName)
+        inFlightTaps.incrementAndGet()
 
         val repo = LiftzRepository(LiftzDatabase.get(context))
         repo.adjustMacro(LocalDate.now(), LiftzRepository.Macro.valueOf(macroName), delta)
 
         val myTicket = ticket.incrementAndGet()
-        delay(COALESCE_MS)
-        // A newer tap arrived while waiting; it is still running and will draw the final state.
-        if (ticket.get() != myTicket) return
+        // An isolated tap should not pay the coalescing wait at all — only bursts need it. If
+        // nothing else is in flight, draw immediately.
+        if (inFlightTaps.get() > 1) {
+            delay(COALESCE_MS)
+            // A newer tap arrived while waiting; it will draw the final state.
+            if (ticket.get() != myTicket) {
+                inFlightTaps.decrementAndGet()
+                return
+            }
+        }
 
         val rendered = WidgetFeedback.snapshot()
         MacroWidget().update(context, glanceId)
         rendered.forEach { (macro, count) -> WidgetFeedback.tapsRendered(macro, count) }
+        inFlightTaps.decrementAndGet()
     }
 
     companion object {
@@ -342,6 +361,8 @@ class AdjustMacroAction : ActionCallback {
          */
         private const val COALESCE_MS = 80L
         private val ticket = AtomicInteger(0)
+        /** Taps currently between "handled" and "drawn", used to skip the wait for single taps. */
+        private val inFlightTaps = AtomicInteger(0)
     }
 }
 

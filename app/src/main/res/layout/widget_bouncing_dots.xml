@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Wrapper so the bouncing-dots AnimationDrawable can be embedded into the Glance tree via
+  AndroidRemoteViews. Glance cannot express a custom indeterminate drawable, but it can host a
+  raw RemoteViews layout, which is what this is.
+-->
+<ProgressBar xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bouncing_dots"
+    android:layout_width="match_parent"
+    android:layout_height="8dp"
+    android:indeterminate="true"
+    android:indeterminateDrawable="@drawable/bouncing_dots"
+    android:indeterminateOnly="true" />

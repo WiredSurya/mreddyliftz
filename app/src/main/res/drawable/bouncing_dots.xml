@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Orange dots tracking left and right across a macro row while a widget update is in
+  flight.
+
+  This is an AnimationDrawable used as a ProgressBar's indeterminateDrawable, and that is
+  the ONLY way to get real motion into an app widget. Widget pixels live in the launcher's
+  process and there is no frame loop available to us, but a ProgressBar animates its own
+  indeterminate drawable over there, on the launcher's clock, with no redraw from this app.
+-->
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:oneshot="false">
+    <item android:drawable="@drawable/dots_frame_00" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_01" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_02" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_03" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_04" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_05" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_06" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_07" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_08" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_09" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_10" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_11" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_12" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_13" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_14" android:duration="55" />
+    <item android:drawable="@drawable/dots_frame_15" android:duration="55" />
+</animation-list>
