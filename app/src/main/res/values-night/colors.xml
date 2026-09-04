@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches NightBg in ui/theme/Theme.kt so the launch frame is warm-dark, not paper. -->
+    <color name="liftz_bg">#17130F</color>
+</resources>

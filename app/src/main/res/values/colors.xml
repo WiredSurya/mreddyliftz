@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="liftz_bg">#0E1113</color>
-    <color name="liftz_green">#2ECC71</color>
-    <color name="liftz_gold">#F5C542</color>
+    <!-- Window/launch background only. The real theming is in Compose (ui/theme/Theme.kt);
+         these exist so the pre-Compose frame matches the paper palette instead of flashing
+         the old dark slate. Kept in sync with PaperBg / NightBg by hand. -->
+    <color name="liftz_bg">#FBF7EF</color>
+    <color name="liftz_orange">#F97316</color>
+    <color name="liftz_yellow">#FBBF24</color>
+    <color name="liftz_green">#3F9142</color>
+    <color name="liftz_gold">#E8A21C</color>
+    <!-- Launcher icon background is deliberately left on the original dark slate: the adaptive
+         icon was designed against it and reads well on any home screen wallpaper. -->
     <color name="ic_launcher_background">#11161A</color>
 </resources>

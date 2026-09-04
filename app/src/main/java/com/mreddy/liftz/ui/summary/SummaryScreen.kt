@@ -39,7 +39,6 @@ import com.mreddy.liftz.ui.common.CrownReveal
 import com.mreddy.liftz.ui.common.factoryOf
 import com.mreddy.liftz.ui.theme.LiftzGold
 import com.mreddy.liftz.ui.theme.LiftzGreen
-import com.mreddy.liftz.ui.theme.LiftzMuted
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -88,7 +87,7 @@ fun SummaryScreen(
                     Text(
                         date.format(dateFormat),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = LiftzMuted
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -98,7 +97,7 @@ fun SummaryScreen(
             item {
                 Text(
                     "Nothing was planned for this day.",
-                    color = LiftzMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 24.dp)
                 )
             }
@@ -153,7 +152,7 @@ private fun HeadlineCard(s: LiftzRepository.DaySummary) {
                     )
                     Text(
                         "${s.exercisesCompleted} of ${s.lines.size} exercises",
-                        color = LiftzMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -174,7 +173,7 @@ private fun HeadlineCard(s: LiftzRepository.DaySummary) {
 private fun Stat(label: String, value: String) {
     Column {
         Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = LiftzMuted)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -216,7 +215,7 @@ private fun ExerciseLineCard(line: LiftzRepository.DaySummaryLine, onClick: () -
                 Modifier
                     .size(8.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(if (line.completed) LiftzGreen else LiftzMuted)
+                    .background(if (line.completed) LiftzGreen else MaterialTheme.colorScheme.onSurfaceVariant)
             )
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -233,14 +232,14 @@ private fun ExerciseLineCard(line: LiftzRepository.DaySummaryLine, onClick: () -
                         line.weightKg?.let { append(" · ${fmtKg(it)} kg") }
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = LiftzMuted
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (line.seconds > 0) {
                 Text(
                     TimeEstimator.format(line.seconds),
                     style = MaterialTheme.typography.labelMedium,
-                    color = LiftzMuted
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
