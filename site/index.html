@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>mreddyLiftz</title>
+<meta name="description" content="Workout and macro tracker. Everything stays on your phone.">
+<meta name="theme-color" content="#FBF7EF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBF7EF; --surface:#FFFDF8; --alt:#F4EDE0;
+    --ink:#241F1A; --muted:#8A7F72; --line:#E4DACA;
+    --orange:#F97316; --orange-deep:#C2560B; --green:#3F9142;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#17130F; --surface:#211C17; --alt:#2C251E;
+      --ink:#F3EADC; --muted:#A79683; --line:#3A3129; --green:#5BC45F;
+    }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.55;
+    padding:max(28px,env(safe-area-inset-top)) 20px max(40px,env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:520px;margin:0 auto}
+  .mark{
+    width:64px;height:64px;border-radius:18px;background:var(--orange);
+    display:grid;place-items:center;margin-bottom:20px;
+  }
+  .mark svg{width:34px;height:34px}
+  h1{font-size:2.1rem;font-weight:800;letter-spacing:-.03em;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:1.02rem;margin:0 0 28px}
+  /* The one thing this page exists for. Full width, thumb height, impossible to miss. */
+  .cta{
+    display:block;width:100%;padding:19px 20px;border-radius:16px;
+    background:var(--orange);color:#fff;text-decoration:none;
+    font-size:1.17rem;font-weight:700;text-align:center;border:0;
+    box-shadow:0 6px 18px rgba(249,115,22,.28);
+  }
+  .cta:active{background:var(--orange-deep);transform:translateY(1px)}
+  .meta{text-align:center;color:var(--muted);font-size:.85rem;margin:12px 0 30px}
+  .card{
+    background:var(--surface);border:1px solid var(--line);
+    border-radius:16px;padding:18px 20px;margin-bottom:16px;
+  }
+  h2{font-size:1rem;font-weight:700;margin:0 0 12px}
+  ol{margin:0;padding-left:20px}
+  ol li{margin-bottom:11px}
+  ol li:last-child{margin-bottom:0}
+  .note{
+    background:var(--alt);border-radius:12px;padding:13px 15px;
+    font-size:.9rem;color:var(--muted);margin-top:14px;
+  }
+  ul.feat{list-style:none;margin:0;padding:0}
+  ul.feat li{padding-left:26px;position:relative;margin-bottom:10px;font-size:.96rem}
+  ul.feat li:last-child{margin-bottom:0}
+  ul.feat li::before{
+    content:"";position:absolute;left:6px;top:.55em;
+    width:7px;height:7px;border-radius:50%;background:var(--green);
+  }
+  footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:30px}
+  footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+      <path d="M4 8v8M20 8v8M7 6v12M17 6v12M7 12h10"/>
+    </svg>
+  </div>
+
+  <h1>mreddyLiftz</h1>
+  <p class="sub">Workout and macro tracking that stays on your phone. No account, no ads.</p>
+
+  <a class="cta" id="dl"
+     href="https://github.com/WiredSurya/mreddyliftz/releases/latest/download/mreddyLiftz-1.0.0.apk">
+     Download for Android
+  </a>
+  <p class="meta">Version 1.0.0 &middot; 13 MB &middot; needs Android 8.0 or newer</p>
+
+  <div class="card">
+    <h2>Installing it</h2>
+    <ol>
+      <li>Tap <strong>Download</strong> above.</li>
+      <li>When it finishes, tap the downloaded file (check your notifications or Downloads).</li>
+      <li>Android will warn that this did not come from the Play Store and ask whether to allow
+          installs from your browser. Tap <strong>Settings</strong>, turn the switch on, then come
+          back and tap <strong>Install</strong>.</li>
+      <li>The icon appears with your other apps.</li>
+    </ol>
+    <p class="note">
+      That warning is normal for any app installed outside the Play Store &mdash; it is Android
+      telling you it has not checked this app, not telling you something is wrong. If you would
+      rather not, wait for the Play Store version.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>What it does</h2>
+    <ul class="feat">
+      <li>Tracks your lifts and works out when you are ready to add weight or move up a level</li>
+      <li>Water, protein, carbs and fat &mdash; calories are calculated for you</li>
+      <li>A calendar that fills in as you hit the day&rsquo;s goals</li>
+      <li>A home screen widget for logging without opening the app</li>
+      <li>Everything is stored on your phone. Nothing is uploaded anywhere</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>It starts empty</h2>
+    <p style="margin:0;font-size:.96rem">
+      That is on purpose &mdash; it is your routine, not someone else&rsquo;s. Add exercises
+      yourself, or open the <strong>Coach</strong> tab, send your data to any AI assistant, and
+      paste the plan it writes straight back in. There is also an example routine in Settings if
+      you would rather edit something than start from scratch.
+    </p>
+  </div>
+
+  <footer>
+    Something broken? <a href="mailto:suryapatrimath@gmail.com">suryapatrimath@gmail.com</a><br>
+    <a href="https://github.com/WiredSurya/mreddyliftz">Source on GitHub</a>
+  </footer>
+
+</div>
+
+<script>
+  // Non-Android visitors get told before they download something they cannot install.
+  if (!/android/i.test(navigator.userAgent)) {
+    var b = document.getElementById('dl');
+    b.insertAdjacentHTML('afterend',
+      '<p class="meta" style="color:var(--orange);margin-top:14px">' +
+      'This is an Android app &mdash; open this page on your phone to install it.</p>');
+  }
+</script>
+</body>
+</html>
