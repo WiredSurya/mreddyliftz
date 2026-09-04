@@ -114,6 +114,20 @@ private val LightColors = lightColorScheme(
     onSurface = InkStrong,
     surfaceVariant = PaperSurfaceAlt,
     onSurfaceVariant = InkMuted,
+    // The surfaceContainer roles are what NavigationBar, Card and friends actually draw with.
+    // Leaving them unset falls back to Material's BASELINE PURPLE, which is how the bottom bar
+    // ended up lavender against a cream app. Every one of them has to be defined for a custom
+    // palette to hold across all M3 components.
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFFFFCF6),
+    surfaceContainer = Color(0xFFF6F0E4),
+    surfaceContainerHigh = Color(0xFFF1E9DA),
+    surfaceContainerHighest = Color(0xFFEBE2D0),
+    surfaceBright = Color(0xFFFFFDF8),
+    surfaceDim = Color(0xFFEDE5D6),
+    surfaceTint = LiftzOrange,
+    inverseSurface = Color(0xFF322C25),
+    inverseOnSurface = Color(0xFFF7EFE2),
     outline = PaperLine,
     outlineVariant = Color(0xFFEFE6D7),
     error = Color(0xFFB3261E)
@@ -134,6 +148,16 @@ private val DarkColors = darkColorScheme(
     onSurface = NightInk,
     surfaceVariant = NightSurfaceAlt,
     onSurfaceVariant = NightMuted,
+    surfaceContainerLowest = Color(0xFF110E0B),
+    surfaceContainerLow = Color(0xFF1D1813),
+    surfaceContainer = Color(0xFF241E18),
+    surfaceContainerHigh = Color(0xFF2E2720),
+    surfaceContainerHighest = Color(0xFF393128),
+    surfaceBright = Color(0xFF3A322A),
+    surfaceDim = Color(0xFF17130F),
+    surfaceTint = LiftzOrange,
+    inverseSurface = Color(0xFFF3EADC),
+    inverseOnSurface = Color(0xFF322C25),
     outline = NightLine,
     outlineVariant = Color(0xFF2F281F),
     error = Color(0xFFF2B8B5)
