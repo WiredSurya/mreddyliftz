@@ -85,6 +85,7 @@ fun SettingsScreen(
 
     val scope = rememberCoroutineScope()
     val themeMode by LiftzApp.prefs().themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val showOffline by LiftzApp.prefs().showOfflineIndicator.collectAsState(initial = false)
 
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -320,6 +321,33 @@ fun SettingsScreen(
                                 }
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        /* ---- connectivity preview ---- */
+        item {
+            Card {
+                Column(Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Offline indicator", fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Shows a banner and a pulsing icon when the phone has no " +
+                                    "internet. Off by default because nothing in the app needs " +
+                                    "a connection yet — it does not even hold the internet " +
+                                    "permission. It is here ready for when cloud sync ships.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = showOffline,
+                            onCheckedChange = { on ->
+                                scope.launch { LiftzApp.prefs().setShowOfflineIndicator(on) }
+                            }
+                        )
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.mreddy.liftz.ui.nav
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -16,9 +17,15 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -26,7 +33,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.mreddy.liftz.LiftzApp
 import com.mreddy.liftz.ui.calendar.CalendarScreen
+import com.mreddy.liftz.ui.common.BlinkingOfflineIcon
+import com.mreddy.liftz.ui.common.OfflineBanner
 import com.mreddy.liftz.ui.exercise.ExerciseScreen
 import com.mreddy.liftz.ui.coach.CoachScreen
 import com.mreddy.liftz.ui.settings.SettingsScreen
@@ -88,6 +98,14 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
     val scope = rememberCoroutineScope()
     val onHome = currentRoute == Routes.HOME
 
+    val showOfflineUi by LiftzApp.prefs().showOfflineIndicator.collectAsState(initial = false)
+    val online by LiftzApp.connectivity().isOnline().collectAsState(initial = true)
+    // Dismissing hides the strip until connectivity actually changes again, rather than
+    // permanently or on a timer - so it never nags, but never silently stops telling the truth.
+    var bannerDismissed by remember { mutableStateOf(false) }
+    if (online) bannerDismissed = false
+    val offline = showOfflineUi && !online
+
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -111,6 +129,7 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
             }
         }
     ) { innerPadding ->
+        Box(Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
@@ -202,6 +221,20 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                     onFinished = { navController.popBackStack() }
                 )
             }
+        }
+
+            if (offline) {
+                BlinkingOfflineIcon(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 14.dp, end = 16.dp)
+                )
+            }
+            OfflineBanner(
+                visible = offline && !bannerDismissed,
+                onDismiss = { bannerDismissed = true },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }

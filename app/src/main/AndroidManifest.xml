@@ -4,6 +4,13 @@
     <!-- Vibration for the set-complete haptic buzz -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!--
+      Read-only connectivity state, for the offline indicator. This is a normal permission and
+      does NOT let the app make network calls: INTERNET is still deliberately not requested, so
+      the app remains incapable of sending your data anywhere. See PRIVACY.md.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:name=".LiftzApp"
         android:allowBackup="true"
