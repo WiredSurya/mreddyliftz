@@ -31,6 +31,8 @@ Keep this file updated. Every completed piece = one git commit + one line in the
     (DayCompletionTest 5, ProgressionEngineTest 14, TimeEstimatorTest 4).
   - `python3 tools/engine_sim.py` -> **28/28 passed.**
   - A full `--rerun-tasks` clean rebuild is warning-free and green end to end.
+  - Totals are now **49/49 Kotlin unit tests**, **45/45 `engine_sim.py`**, and
+    **2/2 migrations** verified by `tools/migration_check.py`.
   - `MigrationsTest` (4 cases) and 8 new mixed-rung / weighted-rung cases were added, so the totals
     are now **35/35 Kotlin unit tests** and **40/40 in `engine_sim.py`**.
   - The two known warnings (JsonPort opt-in, deprecated `Icons.Filled.Undo`) are fixed, so a forced
@@ -89,6 +91,12 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 | 18 | Post-workout summary screen (optional polish) | [x] | Post-workout summary screen |
 | 19 | Real-device verification: fresh install, mixed-rung logging, v1->v2 migration | [x] | (see Next actions — verified live, not a separate commit) |
 | 20 | Play Store prep: release signing config, signed AAB, privacy policy, listing copy | [x] | Play Store submission prep: release signing, privacy policy, listing copy |
+| 21 | Widget rework: tap-to-open, orange controls, responsive sizing, debounced redraw | [x] | Widget: tap-to-open, orange iOS-style controls... |
+| 22 | Swipe navigation, theme toggle, rolling numbers, template access, support email | [x] | Swipe navigation, theme toggle, rolling macro numbers... |
+| 23 | Warm paper visual identity (palette + Plus Jakarta Sans) | [x] | Warm paper visual identity... |
+| 24 | Fat tracking + auto-calculated calories (schema v3) + desktop migration checker | [x] | Fat tracking and calories that calculate themselves (schema v3) |
+| 25 | Progress page + rule-based Coach + bring-your-own-LLM hand-off | [x] | Progress page and Coach: the two missing screens |
+| 26 | Offline indicator (banner, pulsing icon, connectivity Flow) | [x] | Offline indicator: Spotify-style banner... |
 
 ## Next actions (in order)
 
@@ -138,11 +146,67 @@ in the authoring sandbox), so the remaining work is "open it, sync, fix compiler
 - [ ] Only tested on one device (OnePlus 6, Android 9). Layout/behaviour on other screen sizes,
       Android versions, and especially light-vs-dark theme switching is unverified — the phone used
       happened to be in light mode; dark mode was never seen live.
+- [ ] **Nothing from the 2026-09-04 session has been seen on a phone.** The device was
+      disconnected for all of it. Everything compiles, 49/49 tests and both simulators are green,
+      and the migrations are verified against real SQLite — but the entire redesign, all five
+      tabs, the widget rework and the offline banner are unrendered. This is the top priority
+      before shipping to beta testers.
+- [ ] Custom user-defined parameters (beyond the fixed five macros) — asked for, NOT built. Fat
+      was added as a real column instead, because it was the specific thing blocking calorie
+      auto-calculation. Fully user-defined parameters means a `macro_params` + `macro_logs` pair
+      replacing the fixed columns, and reworking `DayCompletion`, the widget and the JSON schema
+      around them. Deliberately not started under deadline rather than half-built.
+- [ ] Cloud sync + Google sign-in. The offline UI is built and waiting; flip the default in
+      `UiPrefs.showOfflineIndicator` when it lands. `PRIVACY.md` currently states the app makes
+      no network calls, which is TRUE today — it must be rewritten before any sync ships, and
+      before that version reaches Play Console.
 - [ ] Play Store submission. See `PLAY_STORE_LISTING.md` for the full checklist — code-side prep
       (signing, listing copy, privacy policy) is done, but account creation, screenshots, the Data
       Safety form, and the actual Console upload all need a human with the Google account.
 
+## Where the design went (2026-09-04)
+
+The app was restyled end to end and four features landed in one session. Read this before
+touching the UI or the macro model.
+
+- **Palette is warm paper, not dark slate.** `ui/theme/Theme.kt` is the only place colours are
+  defined. Light is the design target (aged paper `#FBF7EF`, orange `#F97316` for action, yellow
+  for highlight); dark is a *warm* dark, not blue-grey. Use theme roles
+  (`MaterialTheme.colorScheme.*`, `goalGreen()`, `crownGold()`) rather than hardcoding, or things
+  break in one of the two themes.
+- **Type is Plus Jakarta Sans**, one variable font file at `res/font/plus_jakarta_sans.ttf`,
+  SIL OFL, attribution at `licenses/PlusJakartaSans-OFL.txt`. Anthropic's own fonts (Styrene,
+  Tiempos) are commercially licensed and cannot be bundled — this is the closest open equivalent.
+- **Five pager tabs, not three:** Calendar / Today / Coach / Progress / Profile, all swipeable.
+  They are pages of one `HorizontalPager` behind the single `home` route, NOT separate NavHost
+  destinations — that is what makes swiping work. Detail screens are still pushed normally.
+- **Calories are derived by default.** See the gotcha below. This is the biggest behavioural
+  change in the session.
+- **There is no AI model in the app and that is intentional.** The Coach screen has two halves: a
+  rule-based engine (`domain/Coach.kt`) over your own logged numbers, and an export that bundles
+  a written briefing + your JSON so you can hand it to any LLM and import the answer back. A
+  bundled model would have meant an API key, a running cost, and history leaving the device. Do
+  not "upgrade" this to a built-in model without deciding those three things first.
+
 ## Gotchas a fresh session should know
+
+- **Calories are computed, not logged, unless you turn that off.** `goals.autoCalcCalories`
+  defaults ON and makes calories `4*protein + 4*carbs + 9*fat` via `domain/Calories.kt`. Every
+  caller must go through `LiftzRepository.caloriesFor()`; reading `daily_logs.calories` directly
+  gives you a stale hand-entered number that is ignored in auto mode.
+- **The calendar denominators are still 5 and 4, and adding a macro must not change that.** The
+  fourth macro slot holds EITHER fat (auto-calc on) OR calories (off), never both. If you add a
+  sixth macro, decide deliberately whether it is scored — silently pushing the denominator to 6
+  changes the fill of every day already logged. Two tests pin this in both modes.
+- **`tools/migration_check.py` replays every migration against real SQLite on the desktop.** Run
+  it after ANY entity change, before touching a phone. Room only validates a migration when a
+  real device opens a real database, which turns a bad `ALTER TABLE` into a crash-on-launch for
+  whoever updates first. This catches it in a second, with no device.
+- **The widget cannot animate.** It is RemoteViews shipped to the launcher's process: no frame
+  loop, no touch-down callback. The rolling-number effect is in-app only. Widget redraws are
+  debounced (250ms) because Android rate-limits how fast RemoteViews can be pushed, which is what
+  caused the multi-second lag on rapid taps; the Room write itself is never debounced.
+
 
 - **Release keystore lives OUTSIDE this repo**, at `../keystore/mreddyliftz-upload.jks` (one
   directory above the repo root), with credentials in `keystore.properties` at the repo root.
