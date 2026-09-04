@@ -153,7 +153,16 @@ session: none of that has been rendered on a phone yet (see Next actions).
 - [ ] Only tested on one device (OnePlus 6, Android 9). Layout/behaviour on other screen sizes,
       Android versions, and especially light-vs-dark theme switching is unverified — the phone used
       happened to be in light mode; dark mode was never seen live.
-- [ ] **Nothing from the 2026-09-04 session has been seen on a phone.** The device was
+- [x] Device verification of the 2026-09-04 session. DONE on the OnePlus 6 (Android 9):
+      upgrade-installed over a real schema v2 database holding 6 daily logs and 5 set logs.
+      `PRAGMA user_version` went 2 -> 3, fatG/autoCalcCalories were added with correct defaults,
+      every row survived, no crash. Verified live: swipe navigation between tabs, the fat row,
+      auto-calculated calories (30g protein + 10g fat rendered exactly 210 kcal), the Coach page
+      reading real averages, and the Progress page. One real bug was found and fixed only because
+      it was seen on hardware — see the lavender-bottom-bar commit.
+- [ ] Still unrendered: the WIDGET rework (needs adding to a home screen by hand), dark mode, the
+      offline banner (toggle it on in Settings to see it), and the summary screen.
+- [ ] **Most of the 2026-09-04 session is now verified, but not all of it.** The device was
       disconnected for all of it. Everything compiles, 49/49 tests and both simulators are green,
       and the migrations are verified against real SQLite — but the entire redesign, all five
       tabs, the widget rework and the offline banner are unrendered. This is the top priority
@@ -197,6 +206,12 @@ touching the UI or the macro model.
 
 ## Gotchas a fresh session should know
 
+- **Adding fat retroactively un-crowns some past days, and that is correct.** Verified on the
+  real device during the v2->v3 upgrade: a logged rest day that hit water/protein/carbs/calories
+  was a 4/4 crown under v2. Under v3 the fourth slot is FAT, which is 0 on every pre-migration
+  day, so it scores 3/4 and the crown disappears. Nothing was lost or miscounted — the day
+  genuinely has no fat recorded — but expect the crown count to drop after upgrading, and do not
+  go hunting for a bug. Editing fat on an old day restores its crown.
 - **Calories are computed, not logged, unless you turn that off.** `goals.autoCalcCalories`
   defaults ON and makes calories `4*protein + 4*carbs + 9*fat` via `domain/Calories.kt`. Every
   caller must go through `LiftzRepository.caloriesFor()`; reading `daily_logs.calories` directly
