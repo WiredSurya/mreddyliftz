@@ -17,3 +17,6 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# Built APKs staged for a GitHub release. Artefacts, not source.
+dist/

@@ -55,9 +55,31 @@ class UiPrefs(private val context: Context) {
         context.uiPrefsDataStore.edit { it[KEY_SHOW_OFFLINE] = show }
     }
 
+    /**
+     * A version the user chose to skip, so "Not now" means not now rather than "ask me on every
+     * single launch". Cleared automatically when a NEWER version than the skipped one appears.
+     */
+    val skippedUpdate: Flow<String?> = context.uiPrefsDataStore.data.map {
+        it[KEY_SKIPPED_UPDATE]?.takeIf { v -> v.isNotBlank() }
+    }
+
+    suspend fun skipUpdate(version: String) = context.uiPrefsDataStore.edit {
+        it[KEY_SKIPPED_UPDATE] = version
+    }
+
+    /** Epoch millis of the last GitHub check, so launches do not each cost a network round trip. */
+    suspend fun lastUpdateCheck(): Long =
+        context.uiPrefsDataStore.data.map { it[KEY_LAST_UPDATE_CHECK] ?: 0L }.first()
+
+    suspend fun setLastUpdateCheck(atMs: Long) = context.uiPrefsDataStore.edit {
+        it[KEY_LAST_UPDATE_CHECK] = atMs
+    }
+
     private companion object {
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_SHOW_OFFLINE = booleanPreferencesKey("show_offline_indicator")
+        val KEY_SKIPPED_UPDATE = stringPreferencesKey("skipped_update_version")
+        val KEY_LAST_UPDATE_CHECK = longPreferencesKey("last_update_check")
     }
 }
 

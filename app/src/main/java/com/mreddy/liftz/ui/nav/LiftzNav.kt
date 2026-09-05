@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +38,8 @@ import com.mreddy.liftz.LiftzApp
 import com.mreddy.liftz.ui.calendar.CalendarScreen
 import com.mreddy.liftz.ui.common.BlinkingOfflineIcon
 import com.mreddy.liftz.ui.common.OfflineBanner
+import com.mreddy.liftz.ui.common.UpdateBanner
+import com.mreddy.liftz.data.update.UpdateStatus
 import com.mreddy.liftz.ui.editor.ExerciseEditorScreen
 import com.mreddy.liftz.ui.exercise.ExerciseScreen
 import com.mreddy.liftz.ui.coach.CoachScreen
@@ -72,6 +75,9 @@ object Routes {
 }
 
 /* Pager page indices. Order here is the left-to-right swipe order. */
+/** Six hours: often enough that nobody sits on a stale build, rare enough to be free. */
+private const val UPDATE_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000
+
 private const val PAGE_CALENDAR = 0
 private const val PAGE_TODAY = 1
 private const val PAGE_COACH = 2
@@ -110,6 +116,31 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
     var bannerDismissed by remember { mutableStateOf(false) }
     if (online) bannerDismissed = false
     val offline = showOfflineUi && !online
+
+    /* ---- in-app update check ----
+     * Runs once per Activity and at most every six hours. A sideloaded app has no store to tell
+     * anyone a new build exists, so this is the only thing that closes that loop.
+     */
+    var update by remember { mutableStateOf<UpdateStatus.Available?>(null) }
+    var downloading by remember { mutableStateOf(false) }
+    var downloadPct by remember { mutableStateOf(0) }
+    val skipped by LiftzApp.prefs().skippedUpdate.collectAsState(initial = null)
+
+    LaunchedEffect(Unit) {
+        val prefs = LiftzApp.prefs()
+        val since = System.currentTimeMillis() - prefs.lastUpdateCheck()
+        if (since < UPDATE_CHECK_INTERVAL_MS) return@LaunchedEffect
+        val checker = LiftzApp.updates()
+        when (val result = checker.check()) {
+            is UpdateStatus.Available -> {
+                prefs.setLastUpdateCheck(System.currentTimeMillis())
+                update = result
+            }
+            // UpToDate and Unknown are both non-events. A failed check must never surface as an
+            // error: the app works perfectly well without ever reaching GitHub.
+            else -> prefs.setLastUpdateCheck(System.currentTimeMillis())
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -259,6 +290,36 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
             OfflineBanner(
                 visible = offline && !bannerDismissed,
                 onDismiss = { bannerDismissed = true },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+
+            val pending = update
+            UpdateBanner(
+                // Never both banners at once: offline is the more urgent fact, and an update
+                // cannot be downloaded without a connection anyway.
+                visible = pending != null && !offline && pending.versionName != skipped,
+                versionName = pending?.versionName.orEmpty(),
+                sizeBytes = pending?.sizeBytes ?: 0L,
+                downloading = downloading,
+                progress = downloadPct,
+                onSkip = {
+                    pending?.let { scope.launch { LiftzApp.prefs().skipUpdate(it.versionName) } }
+                },
+                onInstall = {
+                    val u = pending ?: return@UpdateBanner
+                    val checker = LiftzApp.updates()
+                    if (!checker.canInstallPackages()) {
+                        // Android 8+ gates this per app. Send them to the toggle rather than
+                        // failing with a permission error they cannot act on.
+                        checker.requestInstallPermission()
+                        return@UpdateBanner
+                    }
+                    downloading = true
+                    scope.launch {
+                        checker.downloadAndInstall(u) { downloadPct = it }
+                        downloading = false
+                    }
+                },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

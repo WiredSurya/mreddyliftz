@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The single directory the update APK is downloaded into. Scoped as tightly as possible: the
+  installer needs read access to exactly one file, not to app storage generally.
+-->
+<paths>
+    <external-files-path name="updates" path="Download/" />
+</paths>

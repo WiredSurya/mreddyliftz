@@ -7,6 +7,7 @@ import com.mreddy.liftz.data.net.Connectivity
 import com.mreddy.liftz.data.prefs.SyncPrefs
 import com.mreddy.liftz.data.prefs.UiPrefs
 import com.mreddy.liftz.data.sync.SyncManager
+import com.mreddy.liftz.data.update.UpdateChecker
 import com.mreddy.liftz.data.repo.LiftzRepository
 
 /**
@@ -21,6 +22,7 @@ class LiftzApp : Application() {
     val syncPrefs: SyncPrefs by lazy { SyncPrefs(this) }
     val connectivity: Connectivity by lazy { Connectivity(this) }
     val auth: AuthManager by lazy { AuthManager(this) }
+    val updateChecker: UpdateChecker by lazy { UpdateChecker(this) }
 
     /**
      * Backup/restore. Picks its own backend: the signed-in account's Firestore document when
@@ -44,6 +46,7 @@ class LiftzApp : Application() {
         fun syncPrefs(): SyncPrefs = instance.syncPrefs
         fun connectivity(): Connectivity = instance.connectivity
         fun auth(): AuthManager = instance.auth
+        fun updates(): UpdateChecker = instance.updateChecker
         fun sync(): SyncManager = instance.syncManager
     }
 }

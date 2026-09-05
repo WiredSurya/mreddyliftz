@@ -110,6 +110,8 @@ session: none of that has been rendered on a phone yet (see Next actions).
 | 25 | Progress page + rule-based Coach + bring-your-own-LLM hand-off | [x] | Progress page and Coach: the two missing screens |
 | 26 | Offline indicator (banner, pulsing icon, connectivity Flow) | [x] | Offline indicator: Spotify-style banner... |
 | 27 | Google sign-in + Firestore cloud sync, rules, honest PRIVACY.md rewrite | [x] | Google sign-in and cloud sync: pick up where you left off on a new phone |
+| 28 | Pixel-art launcher icon; hosted privacy/terms so OAuth could be published | [x] | New launcher icon... / Hosted privacy policy and terms... |
+| 29 | In-app updater (GitHub Releases), release 1.1.0 | [x] | In-app updates, because there is no store to do it |
 
 ## Next actions (in order)
 
