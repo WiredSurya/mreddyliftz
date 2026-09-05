@@ -60,7 +60,7 @@ object Migrations {
      * Invariant, enforced by MigrationsTest: [ALL] holds a contiguous 1 -> 2 -> ... -> N chain
      * ending at this value.
      */
-    const val SCHEMA_VERSION = 4
+    const val SCHEMA_VERSION = 5
 
     /**
      * v1 -> v2: `set_logs.levelKey`.
@@ -107,6 +107,35 @@ object Migrations {
     }
 
     /**
+     * Muscle groups per exercise, for the per-exercise diagram and the weekly body map.
+     *
+     * Both nullable with no default. An exercise that predates this carries NULL, which the body
+     * map reads as "unclassified" and omits, rather than guessing a muscle and drawing it
+     * confidently in the wrong place.
+     */
+    private val MIGRATION_4_5 = migration(4, 5) { db ->
+        db.execSQL("ALTER TABLE exercises ADD COLUMN primaryMuscle TEXT")
+        db.execSQL("ALTER TABLE exercises ADD COLUMN secondaryMuscles TEXT NOT NULL DEFAULT ''")
+
+        // Backfill the example routine's exercises by their stable ids.
+        //
+        // Without this, anyone who already loaded the example routine opens the new body map and
+        // sees a completely unlit figure despite a week of logged training — the feature would
+        // look broken on exactly the data it was built to describe. Matching on id is safe: these
+        // slugs are the documented JSON export ids and have never changed. Anything else, including
+        // exercises somebody wrote themselves, stays NULL and is honestly reported as
+        // unclassified rather than guessed at from its name.
+        db.execSQL("UPDATE exercises SET primaryMuscle = 'LATS', secondaryMuscles = 'BICEPS,UPPER_BACK,FOREARMS' WHERE id = 'pull_up'")
+        db.execSQL("UPDATE exercises SET primaryMuscle = 'CHEST', secondaryMuscles = 'TRICEPS,SHOULDERS' WHERE id = 'ring_dip'")
+        db.execSQL("UPDATE exercises SET primaryMuscle = 'SHOULDERS', secondaryMuscles = 'TRICEPS,UPPER_BACK,ABS' WHERE id = 'standing_db_press'")
+        db.execSQL("UPDATE exercises SET primaryMuscle = 'HAMSTRINGS', secondaryMuscles = 'GLUTES,LOWER_BACK,ABS' WHERE id = 'single_leg_rdl'")
+        db.execSQL("UPDATE exercises SET primaryMuscle = 'HAMSTRINGS', secondaryMuscles = 'GLUTES,CALVES' WHERE id = 'nordic_curl_negative'")
+        db.execSQL("UPDATE exercises SET primaryMuscle = 'ABS', secondaryMuscles = 'OBLIQUES,SHOULDERS,LOWER_BACK' WHERE id = 'plank'")
+        db.execSQL("UPDATE exercises SET primaryMuscle = 'ABS', secondaryMuscles = 'OBLIQUES,FOREARMS' WHERE id = 'hanging_knee_raise'")
+        db.execSQL("UPDATE exercises SET primaryMuscle = 'OBLIQUES', secondaryMuscles = 'ABS,SHOULDERS,GLUTES' WHERE id = 'side_plank'")
+    }
+
+    /**
      * Every migration, in ascending order. Append, never rewrite.
      *
      * NOTE: this must stay the LAST declaration in the object. Kotlin initialises an object's
@@ -117,6 +146,7 @@ object Migrations {
         MIGRATION_1_2,
         MIGRATION_2_3,
         MIGRATION_3_4,
+        MIGRATION_4_5,
     )
 }
 

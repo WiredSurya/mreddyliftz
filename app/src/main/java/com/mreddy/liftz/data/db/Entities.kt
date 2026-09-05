@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.mreddy.liftz.domain.MuscleGroup
 
 /* ------------------------------------------------------------------------------------------
  * ROUTINE DEFINITION  (what you PLAN to do)
@@ -40,7 +41,17 @@ data class ExerciseEntity(
     /** Free-text form cue shown in the collapsible description block. */
     val formDescription: String = "",
     val notes: String = "",
-    val orderIndex: Int = 0
+    val orderIndex: Int = 0,
+    /**
+     * What this exercise trains. Drives the per-exercise diagram and the weekly body map.
+     *
+     * Nullable and empty by default: every exercise logged before schema 5 has no muscles set,
+     * and an exercise someone invents is perfectly valid without them. Unclassified exercises are
+     * simply absent from the body map rather than being guessed at — a wrong muscle drawn
+     * confidently is worse than a blank one.
+     */
+    val primaryMuscle: MuscleGroup? = null,
+    val secondaryMuscles: List<MuscleGroup> = emptyList()
 )
 
 /**

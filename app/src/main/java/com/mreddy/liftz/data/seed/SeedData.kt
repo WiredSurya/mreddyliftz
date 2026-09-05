@@ -1,6 +1,7 @@
 package com.mreddy.liftz.data.seed
 
 import com.mreddy.liftz.data.db.ExerciseEntity
+import com.mreddy.liftz.domain.MuscleGroup
 import com.mreddy.liftz.data.db.ExerciseType
 import com.mreddy.liftz.data.db.GoalsEntity
 import com.mreddy.liftz.data.db.IncrementsEntity
@@ -46,7 +47,9 @@ object SeedData {
                 "Drive elbows to the ribs, chin clears the bar, control the negative for 2s. " +
                 "No kipping, no chin craning.",
             notes = "5 sets: 2 unassisted to failure, then 3 band assisted at goal reps.",
-            orderIndex = 0
+            orderIndex = 0,
+            primaryMuscle = MuscleGroup.LATS,
+            secondaryMuscles = listOf(MuscleGroup.BICEPS, MuscleGroup.UPPER_BACK, MuscleGroup.FOREARMS)
         ),
         ExerciseEntity(
             id = RING_DIP,
@@ -62,7 +65,9 @@ object SeedData {
             formDescription = "Rings turned out at the top, elbows tracking back not flared. " +
                 "Lower until shoulders sit just below the elbows. Keep the ribcage down.",
             notes = "",
-            orderIndex = 1
+            orderIndex = 1,
+            primaryMuscle = MuscleGroup.CHEST,
+            secondaryMuscles = listOf(MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS)
         ),
         ExerciseEntity(
             id = STANDING_DB_PRESS,
@@ -79,7 +84,9 @@ object SeedData {
             formDescription = "Standing, not seated. Glutes and abs braced so the lower back " +
                 "does not arch. Press slightly back so the bells finish over the ears.",
             notes = "",
-            orderIndex = 2
+            orderIndex = 2,
+            primaryMuscle = MuscleGroup.SHOULDERS,
+            secondaryMuscles = listOf(MuscleGroup.TRICEPS, MuscleGroup.UPPER_BACK, MuscleGroup.ABS)
         ),
         ExerciseEntity(
             id = SINGLE_LEG_RDL,
@@ -96,7 +103,9 @@ object SeedData {
             formDescription = "Hinge from the hip, back leg and torso forming one line. " +
                 "Square the hips (no opening up). Slight bend in the standing knee.",
             notes = "Reps are per side.",
-            orderIndex = 3
+            orderIndex = 3,
+            primaryMuscle = MuscleGroup.HAMSTRINGS,
+            secondaryMuscles = listOf(MuscleGroup.GLUTES, MuscleGroup.LOWER_BACK, MuscleGroup.ABS)
         ),
         ExerciseEntity(
             id = NORDIC_CURL_NEGATIVE,
@@ -112,7 +121,9 @@ object SeedData {
             formDescription = "Hips locked out with the glutes the whole way down, no piking. " +
                 "Resist as slowly as possible, catch with the hands, push back up.",
             notes = "",
-            orderIndex = 4
+            orderIndex = 4,
+            primaryMuscle = MuscleGroup.HAMSTRINGS,
+            secondaryMuscles = listOf(MuscleGroup.GLUTES, MuscleGroup.CALVES)
         ),
         // Core: rotating variants, so no progression logic at all. Plain set/rep logging.
         ExerciseEntity(
@@ -126,7 +137,9 @@ object SeedData {
             restSecondsPerSet = 45,
             formDescription = "Ribs down, glutes on, neutral neck. Log seconds in the reps field.",
             notes = "Logged as seconds.",
-            orderIndex = 5
+            orderIndex = 5,
+            primaryMuscle = MuscleGroup.ABS,
+            secondaryMuscles = listOf(MuscleGroup.OBLIQUES, MuscleGroup.SHOULDERS, MuscleGroup.LOWER_BACK)
         ),
         ExerciseEntity(
             id = HANGING_KNEE_RAISE,
@@ -138,7 +151,9 @@ object SeedData {
             progressionTracked = false,
             restSecondsPerSet = 45,
             formDescription = "No swing. Posterior pelvic tilt at the top, slow return.",
-            orderIndex = 6
+            orderIndex = 6,
+            primaryMuscle = MuscleGroup.ABS,
+            secondaryMuscles = listOf(MuscleGroup.OBLIQUES, MuscleGroup.FOREARMS)
         ),
         ExerciseEntity(
             id = SIDE_PLANK,
@@ -151,7 +166,9 @@ object SeedData {
             restSecondsPerSet = 45,
             formDescription = "Stack the feet, hips high, log seconds per side.",
             notes = "Logged as seconds, per side.",
-            orderIndex = 7
+            orderIndex = 7,
+            primaryMuscle = MuscleGroup.OBLIQUES,
+            secondaryMuscles = listOf(MuscleGroup.ABS, MuscleGroup.SHOULDERS, MuscleGroup.GLUTES)
         )
     )
 

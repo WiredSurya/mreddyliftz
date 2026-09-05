@@ -198,6 +198,11 @@ interface SessionDao {
     @Query("SELECT COUNT(*) FROM exercise_sessions")
     suspend fun countAll(): Int
 
+    /** Sessions from a date onward, for the profile's this-week body map. */
+    @Transaction
+    @Query("SELECT * FROM exercise_sessions WHERE epochDay >= :fromDay ORDER BY epochDay DESC")
+    suspend fun since(fromDay: Long): List<SessionWithSets>
+
     /** Every completed session with its sets, newest first — the input to the stats page. */
     @Transaction
     @Query("SELECT * FROM exercise_sessions WHERE completed = 1 ORDER BY epochDay DESC LIMIT :limit")

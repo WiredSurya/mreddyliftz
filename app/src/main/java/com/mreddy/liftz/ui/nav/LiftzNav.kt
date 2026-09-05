@@ -43,6 +43,7 @@ import com.mreddy.liftz.data.update.UpdateStatus
 import com.mreddy.liftz.ui.editor.ExerciseEditorScreen
 import com.mreddy.liftz.ui.exercise.ExerciseScreen
 import com.mreddy.liftz.ui.coach.CoachScreen
+import com.mreddy.liftz.ui.profile.ProfileScreen
 import com.mreddy.liftz.ui.settings.SettingsScreen
 import com.mreddy.liftz.ui.stats.StatsScreen
 import com.mreddy.liftz.ui.summary.SummaryScreen
@@ -68,6 +69,12 @@ object Routes {
 
     const val SUMMARY = "summary/{epochDay}"
     fun summary(epochDay: Long) = "summary/$epochDay"
+
+    /**
+     * Settings is a pushed destination now, not a tab. The Profile tab answers "how am I doing";
+     * configuration lives one gear-tap deeper, which is where people actually look for it.
+     */
+    const val SETTINGS = "settings"
 
     /** "new" creates; any other value edits that exercise. */
     const val EDITOR = "editor/{exerciseId}"
@@ -215,10 +222,23 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                             }
                         )
 
-                        PAGE_PROFILE -> SettingsScreen()
+                        PAGE_PROFILE -> ProfileScreen(
+                            onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                            onOpenStats = {
+                                scope.launch { pagerState.animateScrollToPage(PAGE_PROGRESS) }
+                            },
+                            onOpenCalendar = {
+                                scope.launch { pagerState.animateScrollToPage(PAGE_CALENDAR) }
+                            },
+                            onOpenExercises = {
+                                scope.launch { pagerState.animateScrollToPage(PAGE_TODAY) }
+                            }
+                        )
                     }
                 }
             }
+
+            composable(Routes.SETTINGS) { SettingsScreen() }
 
             composable(
                 route = Routes.EDITOR,

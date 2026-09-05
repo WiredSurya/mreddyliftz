@@ -21,6 +21,8 @@ import com.mreddy.liftz.data.db.RoutineDayExerciseEntity
 import com.mreddy.liftz.data.seed.SeedData
 import com.mreddy.liftz.domain.Calories
 import com.mreddy.liftz.domain.DayCompletion
+import com.mreddy.liftz.domain.MuscleGroup
+import com.mreddy.liftz.domain.MuscleLoad
 import com.mreddy.liftz.domain.ProgressionEngine
 import com.mreddy.liftz.domain.SetTiming
 import com.mreddy.liftz.domain.TimeEstimator
@@ -762,6 +764,94 @@ class LiftzRepository(private val db: LiftzDatabase) {
             totalReps = sessions.sumOf { s -> s.orderedSets.sumOf { it.reps } },
             totalVolumeKg = volume.takeIf { it > 0.0 },
             sessionsPerWeek = recent / 4f
+        )
+    }
+
+    /**
+     * Give the example routine's exercises their muscle groups if they do not have them.
+     *
+     * The 4->5 migration does this too, but a migration runs exactly once — anyone who was on a
+     * build between the schema bump and the backfill lands permanently unclassified, and any
+     * future correction to these mappings would never reach existing installs. Doing it on launch
+     * as well is idempotent, costs eight indexed updates, and is self-healing.
+     *
+     * Only exercises with a KNOWN seed id and NO primary muscle are touched. An exercise somebody
+     * wrote themselves, or one whose muscles they have edited, is never overwritten.
+     */
+    suspend fun tagKnownExerciseMuscles() {
+        val known = mapOf(
+            "pull_up" to (MuscleGroup.LATS to listOf(
+                MuscleGroup.BICEPS, MuscleGroup.UPPER_BACK, MuscleGroup.FOREARMS)),
+            "ring_dip" to (MuscleGroup.CHEST to listOf(
+                MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS)),
+            "standing_db_press" to (MuscleGroup.SHOULDERS to listOf(
+                MuscleGroup.TRICEPS, MuscleGroup.UPPER_BACK, MuscleGroup.ABS)),
+            "single_leg_rdl" to (MuscleGroup.HAMSTRINGS to listOf(
+                MuscleGroup.GLUTES, MuscleGroup.LOWER_BACK, MuscleGroup.ABS)),
+            "nordic_curl_negative" to (MuscleGroup.HAMSTRINGS to listOf(
+                MuscleGroup.GLUTES, MuscleGroup.CALVES)),
+            "plank" to (MuscleGroup.ABS to listOf(
+                MuscleGroup.OBLIQUES, MuscleGroup.SHOULDERS, MuscleGroup.LOWER_BACK)),
+            "hanging_knee_raise" to (MuscleGroup.ABS to listOf(
+                MuscleGroup.OBLIQUES, MuscleGroup.FOREARMS)),
+            "side_plank" to (MuscleGroup.OBLIQUES to listOf(
+                MuscleGroup.ABS, MuscleGroup.SHOULDERS, MuscleGroup.GLUTES))
+        )
+        exerciseDao.getAll()
+            .filter { it.primaryMuscle == null && known.containsKey(it.id) }
+            .forEach { e ->
+                val (primary, secondary) = known.getValue(e.id)
+                exerciseDao.upsert(
+                    e.copy(primaryMuscle = primary, secondaryMuscles = secondary)
+                )
+            }
+    }
+
+    /** What the profile's body map needs: muscles trained, and how hard, over a window. */
+    data class MuscleWeek(
+        val intensity: Map<MuscleGroup, Float>,
+        val setsPerMuscle: Map<MuscleGroup, Float>,
+        val totalSets: Int,
+        /** Exercises logged this window that have no muscles set, so the map can say so. */
+        val unclassifiedExercises: List<String>
+    ) {
+        val trained: List<MuscleGroup>
+            get() = setsPerMuscle.entries.sortedByDescending { it.value }.map { it.key }
+
+        /**
+         * Muscles with nothing at all this window. This is the point of the whole diagram — a
+         * split's blind spots are invisible in a list of workouts and obvious on a body.
+         */
+        val untouched: List<MuscleGroup>
+            get() = MuscleGroup.entries.filter { setsPerMuscle[it] == null }
+    }
+
+    suspend fun muscleWeek(today: LocalDate = LocalDate.now(), days: Int = 7): MuscleWeek {
+        val sessions = sessionDao.since(today.toEpochDay() - (days - 1))
+        val byId = exerciseDao.getAll().associateBy { it.id }
+
+        val entries = sessions.mapNotNull { s ->
+            val e = byId[s.session.exerciseId] ?: return@mapNotNull null
+            val sets = s.orderedSets.size
+            if (sets == 0) null
+            else MuscleLoad.Entry(e.primaryMuscle, e.secondaryMuscles, sets.toFloat())
+        }
+
+        val unclassified = sessions
+            .mapNotNull { byId[it.session.exerciseId] }
+            .filter { it.primaryMuscle == null && it.secondaryMuscles.isEmpty() }
+            .map { it.name }
+            .distinct()
+
+        return MuscleWeek(
+            // Ten hard sets a week per muscle is the rough consensus floor for growth, so it is
+            // what "fully lit" means here. Scaling to the week's own maximum instead would light
+            // something up every week no matter how little was done, and a colour that means
+            // something different each week cannot show a gap.
+            intensity = MuscleLoad.intensity(entries, setsForFull = 10f),
+            setsPerMuscle = MuscleLoad.tally(entries),
+            totalSets = sessions.sumOf { it.orderedSets.size },
+            unclassifiedExercises = unclassified
         )
     }
 
