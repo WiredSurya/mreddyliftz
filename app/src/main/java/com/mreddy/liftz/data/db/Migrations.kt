@@ -60,7 +60,7 @@ object Migrations {
      * Invariant, enforced by MigrationsTest: [ALL] holds a contiguous 1 -> 2 -> ... -> N chain
      * ending at this value.
      */
-    const val SCHEMA_VERSION = 3
+    const val SCHEMA_VERSION = 4
 
     /**
      * v1 -> v2: `set_logs.levelKey`.
@@ -94,6 +94,19 @@ object Migrations {
     }
 
     /**
+     * Per-set stopwatch timing.
+     *
+     * DEFAULT 0 means "not timed", which is exactly what every set logged before this version
+     * was. Nothing that reads these columns may treat 0 as "a set that took no time" — a zero is
+     * an absence of data, and the timing stats skip those rows rather than averaging them in and
+     * quietly reporting that every old workout was infinitely fast.
+     */
+    private val MIGRATION_3_4 = migration(3, 4) { db ->
+        db.execSQL("ALTER TABLE set_logs ADD COLUMN startedAtMs INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE set_logs ADD COLUMN durationMs INTEGER NOT NULL DEFAULT 0")
+    }
+
+    /**
      * Every migration, in ascending order. Append, never rewrite.
      *
      * NOTE: this must stay the LAST declaration in the object. Kotlin initialises an object's
@@ -103,6 +116,7 @@ object Migrations {
     val ALL: Array<Migration> = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
+        MIGRATION_3_4,
     )
 }
 

@@ -198,6 +198,11 @@ interface SessionDao {
     @Query("SELECT COUNT(*) FROM exercise_sessions")
     suspend fun countAll(): Int
 
+    /** Every completed session with its sets, newest first — the input to the stats page. */
+    @Transaction
+    @Query("SELECT * FROM exercise_sessions WHERE completed = 1 ORDER BY epochDay DESC LIMIT :limit")
+    suspend fun allCompleted(limit: Int = 500): List<SessionWithSets>
+
     @Query("DELETE FROM exercise_sessions") suspend fun clear()
 }
 

@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mreddy.liftz.LiftzApp
 import com.mreddy.liftz.data.repo.LiftzRepository
+import com.mreddy.liftz.domain.SetTiming
 import com.mreddy.liftz.ui.common.factoryOf
 import com.mreddy.liftz.ui.theme.LiftzGreen
 import com.mreddy.liftz.ui.theme.LiftzOrange
@@ -86,6 +87,13 @@ fun StatsScreen(
                 }
             }
             return@LazyColumn
+        }
+
+        /* ---- training load & fatigue ---- */
+        state.insights?.let { ins ->
+            if (ins.sessionsAnalysed > 0) {
+                item { TrainingCard(ins) }
+            }
         }
 
         /* ---- consistency ---- */
@@ -291,5 +299,95 @@ private fun ExerciseStatCard(ex: LiftzRepository.ExerciseStat, onClick: () -> Un
                 }
             }
         }
+    }
+}
+
+
+/**
+ * What the stopwatch bought.
+ *
+ * Every row here is omitted rather than zeroed when its data does not exist yet. Showing
+ * "0:00 average rest" to somebody who has never started the stopwatch would be worse than showing
+ * nothing: it reads as a measurement rather than an absence, and it is the kind of quietly wrong
+ * number that makes a whole stats page untrustworthy.
+ */
+@Composable
+private fun TrainingCard(ins: LiftzRepository.TrainingInsights) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Training load", style = MaterialTheme.typography.titleMedium)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                Stat("Time trained", SetTiming.formatLong(ins.totalTrainingMs), "total")
+                Stat("Reps", "${ins.totalReps}", "logged")
+                Stat("Per week", "%.1f".format(ins.sessionsPerWeek), "sessions")
+            }
+
+            ins.totalVolumeKg?.let {
+                MetricRow("Volume moved", "${it.roundToInt()} kg")
+            }
+            ins.avgSessionMs?.let {
+                MetricRow("Average exercise length", SetTiming.format(it))
+            }
+
+            if (ins.hasTiming) {
+                Text(
+                    "From timing",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                ins.avgSetMs?.let { MetricRow("Average set", SetTiming.format(it)) }
+                ins.avgRestMs?.let { MetricRow("Average rest between sets", SetTiming.format(it)) }
+                ins.density?.let {
+                    MetricRow("Working vs resting", "${(it * 100).roundToInt()}% working")
+                }
+                ins.avgSecondsPerRep?.let {
+                    MetricRow("Tempo", "%.1f s per rep".format(it))
+                }
+                ins.tempoSlope?.let { slope ->
+                    MetricRow(
+                        "Slow-down per set",
+                        if (slope <= 0.02) "none — pace holds"
+                        else "+%.1f s per rep".format(slope),
+                        if (slope > 0.3) LiftzOrange else null
+                    )
+                }
+            } else {
+                Text(
+                    "Tap the play button on a set to time it. Once a few sets are timed, rest, " +
+                        "tempo and fatigue show up here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Deliberately outside the timing block: this one works on every session ever
+            // logged, because it needs nothing but rep counts.
+            ins.repDropOff?.let { drop ->
+                MetricRow(
+                    "Fatigue: last set vs first",
+                    if (drop <= 0f) "no drop-off"
+                    else "-${(drop * 100).roundToInt()}% reps",
+                    if (drop > 0.35f) LiftzOrange else null
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricRow(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color? = null) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = valueColor ?: MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

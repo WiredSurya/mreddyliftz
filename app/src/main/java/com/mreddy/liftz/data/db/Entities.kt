@@ -178,7 +178,16 @@ data class SetLogEntity(
      */
     val levelKey: String? = null,
     val setType: SetType,
-    val loggedAtMs: Long
+    val loggedAtMs: Long,
+    /**
+     * Stopwatch timing for this set. Both are 0 for sets logged before schema 4, and for any set
+     * completed without starting the stopwatch — timing is optional, not a gate on logging.
+     *
+     * 0 means UNKNOWN, never "instantaneous". Every consumer must filter zeros out rather than
+     * average them in; a single untimed set otherwise drags a tempo average toward nonsense.
+     */
+    val startedAtMs: Long = 0,
+    val durationMs: Long = 0
 )
 
 /**

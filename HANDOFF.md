@@ -112,6 +112,7 @@ session: none of that has been rendered on a phone yet (see Next actions).
 | 27 | Google sign-in + Firestore cloud sync, rules, honest PRIVACY.md rewrite | [x] | Google sign-in and cloud sync: pick up where you left off on a new phone |
 | 28 | Pixel-art launcher icon; hosted privacy/terms so OAuth could be published | [x] | New launcher icon... / Hosted privacy policy and terms... |
 | 29 | In-app updater (GitHub Releases), release 1.1.0 | [x] | In-app updates, because there is no store to do it |
+| 30 | Per-set stopwatches (schema v4), timing-derived metrics, fatigue | [x] | Stopwatches instead of a countdown: rest becomes measured, not budgeted |
 
 ## Next actions (in order)
 

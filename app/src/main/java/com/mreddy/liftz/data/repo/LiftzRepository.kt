@@ -22,6 +22,7 @@ import com.mreddy.liftz.data.seed.SeedData
 import com.mreddy.liftz.domain.Calories
 import com.mreddy.liftz.domain.DayCompletion
 import com.mreddy.liftz.domain.ProgressionEngine
+import com.mreddy.liftz.domain.SetTiming
 import com.mreddy.liftz.domain.TimeEstimator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -225,7 +226,14 @@ class LiftzRepository(private val db: LiftzDatabase) {
         weightKg: Double?,
         setType: SetType,
         /** The rung this set was actually done at: the planned set's override, else the current level. */
-        levelKey: String? = null
+        levelKey: String? = null,
+        /**
+         * Stopwatch timing. Both default to 0, meaning "not timed" — logging a set without ever
+         * starting the stopwatch stays completely valid, and the timing stats skip those rows
+         * rather than treating them as instantaneous.
+         */
+        startedAtMs: Long = 0,
+        durationMs: Long = 0
     ) {
         sessionDao.deleteSet(sessionId, setIndex)
         sessionDao.insertSet(
@@ -236,10 +244,22 @@ class LiftzRepository(private val db: LiftzDatabase) {
                 weightKg = weightKg,
                 levelKey = levelKey,
                 setType = setType,
-                loggedAtMs = System.currentTimeMillis()
+                loggedAtMs = System.currentTimeMillis(),
+                startedAtMs = startedAtMs,
+                durationMs = durationMs
             )
         )
     }
+
+    /** When the given session's clock started, for the exercise-level stopwatch. */
+    suspend fun sessionStartedAtMs(exerciseId: String, date: LocalDate): Long =
+        sessionDao.getSession(exerciseId, date.toEpochDay())?.session?.startedAtMs ?: 0L
+
+    /** Timing rows for a session, for restoring the screen and for the stats page. */
+    suspend fun sessionTimings(exerciseId: String, date: LocalDate): List<SetTiming.TimedSet> =
+        sessionDao.getSession(exerciseId, date.toEpochDay())?.orderedSets.orEmpty().map {
+            SetTiming.TimedSet(it.setIndex, it.reps, it.startedAtMs, it.durationMs)
+        }
 
     /** Remove a logged set (the undo button on the exercise screen). */
     suspend fun undoSet(sessionId: Long, setIndex: Int) = sessionDao.deleteSet(sessionId, setIndex)
@@ -648,6 +668,100 @@ class LiftzRepository(private val db: LiftzDatabase) {
             avgCalories = logs.averageOfOrZero { caloriesFor(it, goals) },
             goals = goals,
             exercises = exercises
+        )
+    }
+
+    /**
+     * Metrics that only exist because sets are individually timed, plus a few that were always
+     * derivable and simply were not being shown.
+     *
+     * Everything here is computed from logged numbers. Nothing is estimated, and any metric
+     * without enough data to be honest reports null rather than a plausible-looking zero — the
+     * UI then omits that row entirely instead of showing "0:00 average rest" to someone who has
+     * never used the stopwatch.
+     */
+    data class TrainingInsights(
+        val sessionsAnalysed: Int,
+        /** Sessions with at least one timed set. The denominator for every timing metric below. */
+        val timedSessions: Int,
+        val totalTrainingMs: Long,
+        val avgSessionMs: Long?,
+        val avgRestMs: Long?,
+        val avgSetMs: Long?,
+        /** Share of exercise time actually spent working, 0f..1f. */
+        val density: Float?,
+        val avgSecondsPerRep: Double?,
+        /**
+         * Mean tempo slope across sessions, seconds-per-rep per set. Positive means later sets
+         * run slower than earlier ones — fatigue, measured rather than assumed.
+         */
+        val tempoSlope: Double?,
+        /**
+         * Average drop from the first set's reps to the last set's, as a fraction.
+         *
+         * The one fatigue signal that works on ALL history, including every session logged before
+         * the stopwatch existed, because it needs only rep counts.
+         */
+        val repDropOff: Float?,
+        val totalReps: Int,
+        /** Sum of reps x weight, for weighted work only. Null when nothing weighted is logged. */
+        val totalVolumeKg: Double?,
+        /** Completed sessions per week over the last 28 days. */
+        val sessionsPerWeek: Float
+    ) {
+        val hasTiming: Boolean get() = timedSessions > 0
+    }
+
+    suspend fun insights(today: LocalDate = LocalDate.now()): TrainingInsights {
+        val sessions = sessionDao.allCompleted()
+
+        val timings = sessions.map { SetTiming.of(
+            it.orderedSets.map { st -> SetTiming.TimedSet(st.setIndex, st.reps, st.startedAtMs, st.durationMs) }
+        ) }
+        val timed = timings.filter { it.hasData }
+
+        val sessionDurations = sessions.mapNotNull {
+            val d = it.session.finishedAtMs - it.session.startedAtMs
+            // A session that was never properly finished, or one spanning a clock change, would
+            // otherwise contribute a wild figure to the average.
+            d.takeIf { ms -> ms > 0 && ms < 6 * 60 * 60 * 1000L }
+        }
+
+        // Rep drop-off needs at least two sets to have a first and a last.
+        val dropOffs = sessions.mapNotNull { s ->
+            val sets = s.orderedSets
+            if (sets.size < 2) return@mapNotNull null
+            val first = sets.first().reps
+            val last = sets.last().reps
+            if (first <= 0) null else (first - last).toFloat() / first
+        }
+
+        val cutoff = today.toEpochDay() - 28
+        val recent = sessions.count { it.session.epochDay >= cutoff }
+
+        val volume = sessions.sumOf { s ->
+            s.orderedSets.sumOf { st -> (st.weightKg ?: 0.0) * st.reps }
+        }
+
+        return TrainingInsights(
+            sessionsAnalysed = sessions.size,
+            timedSessions = timed.size,
+            totalTrainingMs = sessionDurations.sum(),
+            avgSessionMs = sessionDurations.takeIf { it.isNotEmpty() }?.average()?.toLong(),
+            avgRestMs = timed.mapNotNull { it.avgRestMs }
+                .takeIf { it.isNotEmpty() }?.average()?.toLong(),
+            avgSetMs = timed.mapNotNull { it.avgSetMs }
+                .takeIf { it.isNotEmpty() }?.average()?.toLong(),
+            density = timed.mapNotNull { it.density }
+                .takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+            avgSecondsPerRep = timed.mapNotNull { it.avgSecondsPerRep }
+                .takeIf { it.isNotEmpty() }?.average(),
+            tempoSlope = timed.mapNotNull { it.tempoSlope }
+                .takeIf { it.isNotEmpty() }?.average(),
+            repDropOff = dropOffs.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+            totalReps = sessions.sumOf { s -> s.orderedSets.sumOf { it.reps } },
+            totalVolumeKg = volume.takeIf { it > 0.0 },
+            sessionsPerWeek = recent / 4f
         )
     }
 

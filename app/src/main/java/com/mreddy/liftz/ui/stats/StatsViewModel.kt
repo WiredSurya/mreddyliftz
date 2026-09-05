@@ -10,7 +10,8 @@ import kotlinx.coroutines.launch
 
 data class StatsUiState(
     val loading: Boolean = true,
-    val stats: LiftzRepository.Stats? = null
+    val stats: LiftzRepository.Stats? = null,
+    val insights: LiftzRepository.TrainingInsights? = null
 )
 
 /** One-shot load, like the summary screen: a stats page is a snapshot, not a live feed. */
@@ -22,6 +23,10 @@ class StatsViewModel(private val repo: LiftzRepository) : ViewModel() {
     init { reload() }
 
     fun reload() = viewModelScope.launch {
-        _state.value = StatsUiState(loading = false, stats = repo.stats())
+        _state.value = StatsUiState(
+            loading = false,
+            stats = repo.stats(),
+            insights = repo.insights()
+        )
     }
 }

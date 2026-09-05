@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mreddy.liftz.LiftzApp
 import com.mreddy.liftz.data.db.SetType
+import com.mreddy.liftz.domain.SetTiming
 import com.mreddy.liftz.domain.TimeEstimator
 import com.mreddy.liftz.ui.common.ConfettiBurst
 import com.mreddy.liftz.ui.common.SetProgressRing
@@ -213,8 +214,8 @@ fun ExerciseScreen(
                 )
             }
 
-            /* ---- cumulative rest timer ---- */
-            RestTimerCard(state = state, viewModel = viewModel)
+            /* ---- live stopwatches ---- */
+            StopwatchCard(state = state)
 
             Spacer(Modifier.height(10.dp))
 
@@ -223,6 +224,10 @@ fun ExerciseScreen(
                 SetRow(
                     index = index,
                     row = row,
+                    running = state.runningSetIndex == index,
+                    otherRunning = state.runningSetIndex != null && state.runningSetIndex != index,
+                    elapsedMs = state.setElapsedMs,
+                    onStart = { viewModel.startSet(index) },
                     onMinus = { viewModel.bumpReps(index, -1) },   // rep increment is fixed at 1
                     onPlus = { viewModel.bumpReps(index, 1) },
                     onComplete = { viewModel.completeSet(index) },
@@ -305,6 +310,12 @@ private fun RecordHeader(state: ExerciseUiState) {
 private fun SetRow(
     index: Int,
     row: SetRowState,
+    /** True while THIS set's stopwatch is running. */
+    running: Boolean,
+    /** True when some other set is running, so this one cannot be started. */
+    otherRunning: Boolean,
+    elapsedMs: Long,
+    onStart: () -> Unit,
     onMinus: () -> Unit,
     onPlus: () -> Unit,
     onComplete: () -> Unit,
@@ -313,9 +324,11 @@ private fun SetRow(
     Card(
         Modifier.fillMaxWidth().padding(vertical = 3.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (row.logged)
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-            else MaterialTheme.colorScheme.surface
+            containerColor = when {
+                running -> MaterialTheme.colorScheme.primaryContainer
+                row.logged -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                else -> MaterialTheme.colorScheme.surface
+            }
         )
     ) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -333,7 +346,17 @@ private fun SetRow(
                     fontSize = 13.sp
                 )
                 val sub = buildString {
-                    if (row.plannedSet.label.isNotBlank()) append(row.plannedSet.label)
+                    if (running) {
+                        append(SetTiming.format(elapsedMs))
+                    } else if (row.logged && row.durationMs > 0) {
+                        // Only for timed sets: a 0 means the stopwatch was never started, and
+                        // printing "0:00" would claim the set was instantaneous.
+                        append(SetTiming.format(row.durationMs))
+                    }
+                    if (row.plannedSet.label.isNotBlank()) {
+                        if (isNotEmpty()) append("  ")
+                        append(row.plannedSet.label)
+                    }
                     row.targetToBeat?.let {
                         if (isNotEmpty()) append("  ")
                         append("beat $it")
@@ -348,6 +371,17 @@ private fun SetRow(
                 }
             }
 
+            // Start is offered only for an unlogged set with no other set already running.
+            // Logging without ever starting stays possible — timing is optional, not a gate.
+            if (!row.logged && !running && !otherRunning) {
+                IconButton(onClick = onStart) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = "Start this set",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             IconButton(onClick = onMinus, enabled = !row.logged) {
                 Icon(Icons.Filled.Remove, contentDescription = "One less rep")
             }
@@ -379,28 +413,57 @@ private fun SetRow(
     }
 }
 
-/** One cumulative clock for the whole exercise, not a per-set countdown. */
+/**
+ * Two clocks counting UP, side by side.
+ *
+ * This replaced a countdown that could only say how much of a planned rest budget was left. The
+ * problem with that framing is it measures the plan, not the workout: it could never tell you how
+ * long a set actually took, so rest was assumed rather than known. Timing the exercise and each
+ * set separately makes rest a subtraction — and makes tempo, density and fatigue computable at
+ * all. See `domain/SetTiming.kt`.
+ */
 @Composable
-private fun RestTimerCard(state: ExerciseUiState, viewModel: ExerciseViewModel) {
+private fun StopwatchCard(state: ExerciseUiState) {
     Card(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.padding(vertical = 12.dp, horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(Modifier.weight(1f)) {
-                Text("Rest budget", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Text(
-                    "${TimeEstimator.format(state.restRemainingSeconds)} left of " +
-                        TimeEstimator.format(state.restTotalSeconds),
-                    fontSize = 12.sp,
+                    "Exercise",
+                    fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            IconButton(onClick = { viewModel.toggleRestTimer() }) {
-                Icon(
-                    if (state.restRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (state.restRunning) "Pause rest" else "Start rest"
+                Text(
+                    SetTiming.format(state.exerciseElapsedMs),
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
-            IconButton(onClick = { viewModel.resetRestTimer() }) {
-                Icon(Icons.Filled.Refresh, contentDescription = "Reset rest")
+            Column(Modifier.weight(1f)) {
+                // One slot, three meanings: the running set, the rest since the last one, or
+                // nothing yet. Showing all three at once would be noise on a phone held at
+                // arm's length between sets.
+                val (label, value, tint) = when {
+                    state.runningSetIndex != null -> Triple(
+                        "Set ${state.runningSetIndex!! + 1}",
+                        SetTiming.format(state.setElapsedMs),
+                        MaterialTheme.colorScheme.primary
+                    )
+                    state.isResting -> Triple(
+                        "Resting",
+                        SetTiming.format(state.restElapsedMs),
+                        MaterialTheme.colorScheme.onSurface
+                    )
+                    else -> Triple(
+                        "Worked",
+                        SetTiming.format(state.workedMs),
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = tint)
             }
         }
     }
