@@ -1,13 +1,15 @@
 # mreddyLiftz
 
-Native Android fitness + macro tracker. Solo hobby project, no backend, no network calls anywhere.
+Native Android fitness + macro tracker. Solo hobby project. Local-first: everything works
+without an account, with optional Google sign-in to sync your history between your own devices.
 
 **Not going on the Play Store** — it is a personal app, shared with friends by link.
 Install it: **https://wiredsurya.github.io/mreddyliftz/** (Android 8+).
 Distribution and update process: `docs/DISTRIBUTION.md`.
 
 **Stack:** Kotlin, Jetpack Compose, Room (single source of truth), Jetpack Glance (widget),
-kotlinx.serialization (import/export). Gradle Kotlin DSL with a version catalog.
+kotlinx.serialization (import/export), Firebase Auth + Firestore (optional cloud sync).
+Gradle Kotlin DSL with a version catalog.
 minSdk 26, compileSdk/targetSdk 35, JVM target 17.
 
 > **Read `HANDOFF.md` first if you are picking this up mid-build.** It tracks what is done,
@@ -164,9 +166,13 @@ mreddyliftz_export_template.json
 - **Calories increment** is editable in Settings even though the brief only listed water/protein/carbs.
   The JSON `increments` block still exports only the three specified keys.
 - **Carbs** are a placeholder throughout (default 10 g/tap, 250 g goal) since there is no carb history yet.
-- Out of scope by request: Firebase or any backend, meal photo capture, Zepp/sleep/HR/PAI integration.
+- Out of scope by request: meal photo capture, Zepp/sleep/HR/PAI integration.
   The Play Store is explicitly NOT the target (see `docs/DISTRIBUTION.md`); the app is
-  sideloaded from a link. A backend/Firebase/network layer is still out too.
+  sideloaded from a link.
+- **Building this yourself needs your own Firebase project.** `app/google-services.json` is
+  specific to one project and one pair of signing fingerprints, so a fresh clone will not
+  authenticate against it. See `docs/CLOUD_SYNC.md`. Everything except sign-in builds and runs
+  without it.
 - No instrumented (device) tests, no Compose UI tests.
 
 ## Next steps if you want to keep going

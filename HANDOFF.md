@@ -26,9 +26,9 @@ Keep this file updated. Every completed piece = one git commit + one line in the
   not update an app signed with a different key, so losing it strands every existing install with
   no recovery — and with no store account behind it, there is no Play App Signing safety net.
 - **Stack:** Kotlin, Jetpack Compose, Room (single source of truth), Jetpack Glance (widget),
-  DataStore (UI prefs only). No Firebase, no backend, and no network calls: the app holds
-  ACCESS_NETWORK_STATE (read-only, for the offline indicator) but deliberately does NOT hold
-  INTERNET, so it is incapable of sending anything off the device.
+  DataStore (UI prefs only), Firebase Auth + Firestore (optional cloud sync, added 2026-09-05).
+  The app now holds INTERNET, used only when signed in and syncing. Signed out it transmits
+  nothing and every screen still works — sign-in buys sync, it does not gate the app.
 - **Package:** `com.mreddy.liftz` — sources under `app/src/main/java/com/mreddy/liftz/`.
 - **Gradle:** Kotlin DSL + version catalog at `gradle/libs.versions.toml`. AGP 8.7.3, Kotlin 2.0.21, KSP, Room 2.6.1.
 - **minSdk 26, compileSdk/targetSdk 35, JVM target 17.**
@@ -109,6 +109,7 @@ session: none of that has been rendered on a phone yet (see Next actions).
 | 24 | Fat tracking + auto-calculated calories (schema v3) + desktop migration checker | [x] | Fat tracking and calories that calculate themselves (schema v3) |
 | 25 | Progress page + rule-based Coach + bring-your-own-LLM hand-off | [x] | Progress page and Coach: the two missing screens |
 | 26 | Offline indicator (banner, pulsing icon, connectivity Flow) | [x] | Offline indicator: Spotify-style banner... |
+| 27 | Google sign-in + Firestore cloud sync, rules, honest PRIVACY.md rewrite | [x] | Google sign-in and cloud sync: pick up where you left off on a new phone |
 
 ## Next actions (in order)
 
@@ -177,10 +178,22 @@ session: none of that has been rendered on a phone yet (see Next actions).
       auto-calculation. Fully user-defined parameters means a `macro_params` + `macro_logs` pair
       replacing the fixed columns, and reworking `DayCompletion`, the widget and the JSON schema
       around them. Deliberately not started under deadline rather than half-built.
-- [ ] Cloud sync + Google sign-in. The offline UI is built and waiting; flip the default in
-      `UiPrefs.showOfflineIndicator` when it lands. `PRIVACY.md` currently states the app makes
-      no network calls, which is TRUE today — it must be rewritten before any sync ships, and
-      before that version reaches Play Console.
+- [x] Cloud sync + Google sign-in. DONE 2026-09-05 — `data/auth/AuthManager.kt` (Credential
+      Manager, not the deprecated GoogleSignInClient) and `data/sync/FirestoreBackend.kt` behind
+      the existing `SyncBackend` interface. `UiPrefs.showOfflineIndicator` now defaults ON, and
+      `PRIVACY.md` was rewritten in the same change to describe what is uploaded, where it goes,
+      who can read it, and how to delete it. See `docs/CLOUD_SYNC.md`.
+      **Still unverified on a device** — see the open item below.
+- [ ] **Verify sign-in on a real device.** This is the one part that cannot be proven from the
+      dev machine: it compiles, the tests pass, and the config is confirmed complete, but no
+      Google account has actually signed in yet. Two console-side settings can only fail at
+      runtime, both with unhelpful errors:
+      1. **OAuth consent screen not published** — sign-in fails for anyone not whitelisted.
+         Google Cloud console → APIs & Services → OAuth consent screen → Publish.
+      2. **Firestore database not created** — sync fails after a successful sign-in.
+      Then check: sign in, confirm a backup lands (Firebase console → Firestore shows
+      `users/{uid}/snapshots/latest`), and install on a second device to confirm the blank-slate
+      auto-restore actually restores.
 - [ ] Play Store submission. See `PLAY_STORE_LISTING.md` for the full checklist — code-side prep
       (signing, listing copy, privacy policy) is done, but account creation, screenshots, the Data
       Safety form, and the actual Console upload all need a human with the Google account.
@@ -242,7 +255,12 @@ touching the UI or the macro model.
   the same key). The keystore FILE is not: losing it means the Play Store upload key is gone.
   Back it up somewhere outside this project directory (password manager, external drive) — it is
   not part of the git history and never should be.
-- Do NOT add Firebase, a backend, or any network call. Explicitly out of scope.
+- Firebase is IN scope as of 2026-09-05, but narrowly: auth + one snapshot document. Do not let
+  it spread into analytics, Crashlytics, remote config or messaging — `PRIVACY.md` states plainly
+  that none of those exist, and adding one silently would make that document a lie.
+- `app/google-services.json` is committed on purpose and is safe to be public (no secret; the API
+  key is bound to the package name and signing fingerprint, and Firestore is gated by
+  `firestore.rules`). A fork needs its own Firebase project regardless — the fingerprints differ.
 - Room is the ONLY source of truth. The Glance widget writes the same tables; nothing is cached.
 - The progression engine (`domain/ProgressionEngine.kt`) has zero Android/Room imports on purpose.
   Keep it that way so it stays unit-testable on the JVM.

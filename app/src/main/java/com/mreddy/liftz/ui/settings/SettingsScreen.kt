@@ -373,6 +373,9 @@ fun SettingsScreen(
             }
         }
 
+        /* ---- google account & cloud sync ---- */
+        item { AccountCard() }
+
         /* ---- backup & restore ---- */
         item {
             Card {
@@ -380,13 +383,19 @@ fun SettingsScreen(
                     Text("Backup", fontWeight = FontWeight.SemiBold)
                     val st = syncStatus
                     Text(
-                        if (st?.isCloud == true)
-                            "Backing up to the folder you chose. Point that at a Drive, Dropbox " +
-                                "or OneDrive folder and their app syncs it off the phone for you — " +
-                                "no account needed here, and this app never sees your password."
-                        else "Stored on this device only right now. It survives a bad import or a " +
-                            "wrong edit, but NOT uninstalling the app or losing the phone. " +
-                            "Choose a folder below to fix that.",
+                        when {
+                            st?.accountEmail != null ->
+                                "Backing up to your Google account. Sign in on another phone " +
+                                    "and your history comes with you."
+                            st?.folderUri != null ->
+                                "Backing up to the folder you chose. Point that at a Drive, " +
+                                    "Dropbox or OneDrive folder and their app syncs it off the " +
+                                    "phone for you — this app never sees your password."
+                            else ->
+                                "Stored on this device only right now. It survives a bad import " +
+                                    "or a wrong edit, but NOT uninstalling the app or losing the " +
+                                    "phone. Sign in above, or choose a folder below."
+                        },
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

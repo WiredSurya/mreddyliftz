@@ -194,6 +194,10 @@ interface SessionDao {
     @Query("SELECT COUNT(*) FROM exercise_sessions WHERE epochDay = :epochDay AND completed = 1")
     suspend fun completedCountForDay(epochDay: Long): Int
 
+    /** Used to tell a blank install from one with real history, before an automatic restore. */
+    @Query("SELECT COUNT(*) FROM exercise_sessions")
+    suspend fun countAll(): Int
+
     @Query("DELETE FROM exercise_sessions") suspend fun clear()
 }
 

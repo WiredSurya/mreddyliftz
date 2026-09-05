@@ -1,6 +1,7 @@
 package com.mreddy.liftz
 
 import android.app.Application
+import com.mreddy.liftz.data.auth.AuthManager
 import com.mreddy.liftz.data.db.LiftzDatabase
 import com.mreddy.liftz.data.net.Connectivity
 import com.mreddy.liftz.data.prefs.SyncPrefs
@@ -19,13 +20,14 @@ class LiftzApp : Application() {
     val uiPrefs: UiPrefs by lazy { UiPrefs(this) }
     val syncPrefs: SyncPrefs by lazy { SyncPrefs(this) }
     val connectivity: Connectivity by lazy { Connectivity(this) }
+    val auth: AuthManager by lazy { AuthManager(this) }
 
     /**
-     * Backup/restore. The backend is the only thing that changes when a real cloud target is
-     * wired in — see docs/CLOUD_SYNC.md for exactly what that swap involves.
+     * Backup/restore. Picks its own backend: the signed-in account's Firestore document when
+     * cloud sync is on, the chosen folder or on-device storage otherwise.
      */
     val syncManager: SyncManager by lazy {
-        SyncManager(this, database, syncPrefs)
+        SyncManager(this, database, syncPrefs, auth, connectivity)
     }
 
     override fun onCreate() {
@@ -41,6 +43,7 @@ class LiftzApp : Application() {
         fun prefs(): UiPrefs = instance.uiPrefs
         fun syncPrefs(): SyncPrefs = instance.syncPrefs
         fun connectivity(): Connectivity = instance.connectivity
+        fun auth(): AuthManager = instance.auth
         fun sync(): SyncManager = instance.syncManager
     }
 }

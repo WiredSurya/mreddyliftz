@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 // Release signing. keystore.properties is git-ignored and local-only (see .gitignore and
@@ -96,6 +97,16 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    // Firebase: Google sign-in + cloud snapshot storage. The BOM fixes the versions of every
+    // firebase-* artifact below, so they can never drift apart.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.datastore.preferences)

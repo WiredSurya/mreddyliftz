@@ -42,14 +42,13 @@ class UiPrefs(private val context: Context) {
     /**
      * Whether to show the offline banner and pulsing indicator.
      *
-     * Defaults to OFF, and that is deliberate rather than an oversight. The app currently has no
-     * cloud features at all — it does not even hold the INTERNET permission — so telling someone
-     * "you're offline" would be describing a state that changes nothing about what they can do.
-     * The UI is built and wired so it is ready the day sync lands; until then it is opt-in from
-     * Settings for anyone who wants to see it. Flip the default here when sync ships.
+     * Defaults to ON now that cloud sync exists. It used to default to OFF, correctly: with no
+     * network features at all, "you're offline" described a state that changed nothing. That is
+     * no longer true — offline now means your logging still works but will not reach your other
+     * devices until you reconnect, which is worth saying.
      */
     val showOfflineIndicator: Flow<Boolean> = context.uiPrefsDataStore.data.map { prefs ->
-        prefs[KEY_SHOW_OFFLINE] ?: false
+        prefs[KEY_SHOW_OFFLINE] ?: true
     }
 
     suspend fun setShowOfflineIndicator(show: Boolean) {
@@ -109,6 +108,24 @@ class SyncPrefs(private val context: Context) {
         it[KEY_DEVICE_ID] = id
     }
 
+    /**
+     * Whether a signed-in account should sync to the cloud.
+     *
+     * Defaults to true: signing in is itself the opt-in, and an account that did not sync would
+     * be a confusing thing to own. Turning it off keeps you signed in but sends the backup to
+     * your chosen folder instead — which is the escape hatch for anyone who wants the account
+     * without the upload.
+     */
+    val cloudSyncEnabled: Flow<Boolean> = context.uiPrefsDataStore.data.map {
+        it[KEY_CLOUD_SYNC] ?: true
+    }
+
+    suspend fun cloudSyncEnabledOnce(): Boolean = cloudSyncEnabled.first()
+
+    suspend fun setCloudSyncEnabled(enabled: Boolean) = context.uiPrefsDataStore.edit {
+        it[KEY_CLOUD_SYNC] = enabled
+    }
+
     /** SAF tree URI of the folder chosen for backups, or null if none has been picked. */
     val backupFolder: Flow<String?> = context.uiPrefsDataStore.data.map {
         it[KEY_BACKUP_FOLDER]?.takeIf { uri -> uri.isNotBlank() }
@@ -126,5 +143,6 @@ class SyncPrefs(private val context: Context) {
         val KEY_LAST_ERROR = stringPreferencesKey("sync_last_error")
         val KEY_DEVICE_ID = stringPreferencesKey("sync_device_id")
         val KEY_BACKUP_FOLDER = stringPreferencesKey("sync_backup_folder")
+        val KEY_CLOUD_SYNC = booleanPreferencesKey("sync_cloud_enabled")
     }
 }

@@ -5,10 +5,15 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!--
-      Read-only connectivity state, for the offline indicator. This is a normal permission and
-      does NOT let the app make network calls: INTERNET is still deliberately not requested, so
-      the app remains incapable of sending your data anywhere. See PRIVACY.md.
+      Cloud sync. This app went years without INTERNET on purpose, and adding it is a real change
+      in what the app can do: it is now capable of sending your training data off the device.
+      It only ever does so to YOUR Firestore document, and only once you have signed in — signing
+      out and never signing in leaves the app fully functional and entirely local. See PRIVACY.md,
+      which was rewritten when this permission was added.
     -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Read-only connectivity state, for the offline indicator. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application

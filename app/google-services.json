@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "241320023737",
+    "project_id": "mreddyliftz",
+    "storage_bucket": "mreddyliftz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241320023737:android:46bf8ffc1972a473a42d68",
+        "android_client_info": {
+          "package_name": "com.mreddy.liftz"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "241320023737-b6irdjit2b4vijh33vgddq7v0p2jdtt8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mreddy.liftz",
+            "certificate_hash": "ab5e7c1ce041cdb8ef081faccad27089fe68297f"
+          }
+        },
+        {
+          "client_id": "241320023737-lgv0rn6v8o0upkh3qvtg88kpll55qva3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mreddy.liftz",
+            "certificate_hash": "e52fbf4973f1bb4844d6988445fbbf9bdeabe851"
+          }
+        },
+        {
+          "client_id": "241320023737-br6m0tlobkao9htheausqnbh29v18v5s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5o3v426VCE-NdwtMm0iM9j7oq5Y-RlP8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "241320023737-br6m0tlobkao9htheausqnbh29v18v5s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
