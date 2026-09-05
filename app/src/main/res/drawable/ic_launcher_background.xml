@@ -1,29 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Adaptive icon background: flat dark slate with a soft diagonal sheen band. -->
+<!--
+  Adaptive icon BACKGROUND layer: flat deep-sea blue, taken from the artwork's own background so
+  the foreground sits on it seamlessly and no seam shows at any mask shape.
+
+  Flat on purpose. The foreground is dense pixel art; a gradient or sheen behind it would fight
+  the sprite for attention at 48dp, which is the only size that actually matters.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
     <path
-        android:fillColor="#11161A"
+        android:fillColor="#265068"
         android:pathData="M0,0h108v108h-108z" />
-
-    <!-- Subtle diagonal highlight sweeping across the plate -->
-    <path
-        android:pathData="M-10,72 L36,-10 L60,-10 L14,72 Z"
-        android:fillAlpha="0.06">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="-10" android:startY="72"
-                android:endX="60" android:endY="-10"
-                android:type="linear">
-                <item android:offset="0.0" android:color="#00FFFFFF" />
-                <item android:offset="0.5" android:color="#FFFFFFFF" />
-                <item android:offset="1.0" android:color="#00FFFFFF" />
-            </gradient>
-        </aapt:attr>
-    </path>
 </vector>
