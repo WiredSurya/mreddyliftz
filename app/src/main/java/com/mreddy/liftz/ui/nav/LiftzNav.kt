@@ -43,6 +43,7 @@ import com.mreddy.liftz.data.update.UpdateStatus
 import com.mreddy.liftz.ui.editor.ExerciseEditorScreen
 import com.mreddy.liftz.ui.exercise.ExerciseScreen
 import com.mreddy.liftz.ui.coach.CoachScreen
+import com.mreddy.liftz.ui.auth.SignInScreen
 import com.mreddy.liftz.ui.profile.ProfileScreen
 import com.mreddy.liftz.ui.settings.SettingsScreen
 import com.mreddy.liftz.ui.stats.StatsScreen
@@ -75,6 +76,9 @@ object Routes {
      * configuration lives one gear-tap deeper, which is where people actually look for it.
      */
     const val SETTINGS = "settings"
+
+    /** Full screen rather than a card: three providers do not fit in a settings row. */
+    const val SIGN_IN = "sign_in"
 
     /** "new" creates; any other value edits that exercise. */
     const val EDITOR = "editor/{exerciseId}"
@@ -224,6 +228,7 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
 
                         PAGE_PROFILE -> ProfileScreen(
                             onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                            onSignIn = { navController.navigate(Routes.SIGN_IN) },
                             onOpenStats = {
                                 scope.launch { pagerState.animateScrollToPage(PAGE_PROGRESS) }
                             },
@@ -239,6 +244,10 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
             }
 
             composable(Routes.SETTINGS) { SettingsScreen() }
+
+            composable(Routes.SIGN_IN) {
+                SignInScreen(onDone = { navController.popBackStack() })
+            }
 
             composable(
                 route = Routes.EDITOR,

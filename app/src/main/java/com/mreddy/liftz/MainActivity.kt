@@ -24,6 +24,7 @@ import com.mreddy.liftz.data.prefs.ThemeMode
 import com.mreddy.liftz.data.sync.LaunchSync
 import kotlinx.coroutines.launch
 import com.mreddy.liftz.ui.nav.LiftzNavHost
+import com.mreddy.liftz.ui.onboarding.OnboardingScreen
 import com.mreddy.liftz.ui.theme.MreddyLiftzTheme
 
 /**
@@ -99,8 +100,20 @@ class MainActivity : ComponentActivity() {
                         .background(MaterialTheme.colorScheme.background),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    LiftzNavHost()
-                    LaunchSyncGate()
+                    // First run shows setup instead of the app. Collected with a null initial
+                    // value so nothing flashes on screen before we know which to show — a
+                    // one-frame glimpse of the calendar before onboarding reads as a bug.
+                    val profile by LiftzApp.profilePrefs().profile
+                        .collectAsState(initial = null)
+
+                    when {
+                        profile == null -> Unit
+                        profile?.completed == false -> OnboardingScreen(onDone = { })
+                        else -> {
+                            LiftzNavHost()
+                            LaunchSyncGate()
+                        }
+                    }
                 }
             }
         }

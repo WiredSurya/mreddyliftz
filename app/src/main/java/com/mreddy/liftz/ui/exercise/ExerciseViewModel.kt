@@ -45,6 +45,8 @@ data class ExerciseUiState(
     val hypertrophyMax: Int = 12,
     val rollingWindow: Int = 6,
     val progressionNote: String = "",
+    val primaryMuscle: com.mreddy.liftz.domain.MuscleGroup? = null,
+    val secondaryMuscles: List<com.mreddy.liftz.domain.MuscleGroup> = emptyList(),
     val rows: List<SetRowState> = emptyList(),
     /** 0f..1f, drives the pie-chart ring. */
     val ringProgress: Float = 0f,
@@ -135,6 +137,8 @@ class ExerciseViewModel(
                 hypertrophyMax = e.hypertrophyMax,
                 rollingWindow = e.rollingWindow,
                 progressionNote = describe(ctx.outcome),
+                primaryMuscle = e.primaryMuscle,
+                secondaryMuscles = e.secondaryMuscles,
                 rows = rows,
                 ringProgress = if (rows.isEmpty()) 0f
                 else rows.count { r -> r.logged }.toFloat() / rows.size,

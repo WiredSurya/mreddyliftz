@@ -214,6 +214,12 @@ fun ExerciseScreen(
                 )
             }
 
+            /* ---- what this works ---- */
+            if (state.primaryMuscle != null || state.secondaryMuscles.isNotEmpty()) {
+                MuscleCard(state)
+                Spacer(Modifier.height(10.dp))
+            }
+
             /* ---- live stopwatches ---- */
             StopwatchCard(state = state)
 
@@ -483,3 +489,47 @@ private fun buzz(context: Context) {
 }
 
 private fun trim(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()
+
+
+/**
+ * The muscles this exercise trains, drawn rather than named.
+ *
+ * Sits above the stopwatches because it answers "am I on the right screen and doing the right
+ * thing" — a question you have before you start, not while you are counting reps.
+ */
+@Composable
+private fun MuscleCard(state: ExerciseUiState) {
+    Card(Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            com.mreddy.liftz.ui.common.BodyMap(
+                intensity = buildMap {
+                    state.primaryMuscle?.let { put(it, 1f) }
+                    // Same third-of-a-set weighting the weekly map uses, so the shading here
+                    // means the same thing it does on the profile.
+                    state.secondaryMuscles.forEach {
+                        if (it != state.primaryMuscle) put(it, 0.34f)
+                    }
+                },
+                showLabels = false,
+                figureHeight = 118.dp,
+                modifier = Modifier.width(150.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                state.primaryMuscle?.let {
+                    Text("Works", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(it.displayName, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                }
+                if (state.secondaryMuscles.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("Also", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        state.secondaryMuscles.joinToString(", ") { it.displayName },
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}

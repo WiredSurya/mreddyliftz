@@ -58,6 +58,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ProfileScreen(
     onOpenSettings: () -> Unit,
+    onSignIn: () -> Unit,
     onOpenStats: () -> Unit,
     onOpenCalendar: () -> Unit,
     onOpenExercises: () -> Unit
@@ -131,7 +132,7 @@ fun ProfileScreen(
         }
 
         /* ---- account: prominent, not buried ---- */
-        item { AccountCard() }
+        item { AccountCard(onMoreOptions = onSignIn) }
 
         /* ---- this week's muscles ---- */
         state.week?.let { week -> item { MuscleWeekCard(week) } }

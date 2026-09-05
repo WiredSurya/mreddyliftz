@@ -11,6 +11,13 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
 import com.mreddy.liftz.R
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -113,6 +120,104 @@ class AuthManager(private val context: Context) {
         } catch (e: Exception) {
             SignInOutcome.Failed(e.message ?: "Sign-in failed.")
         }
+    }
+
+    /* ---------------------------- email + password ----------------------------
+     * Enabled alongside Google because not everyone wants to hand a Google account to a hobby
+     * app, and because a Google account is not universal. The sync behaviour is identical: the
+     * provider only decides how the uid is proved, and everything downstream keys off that uid.
+     */
+
+    suspend fun signUpWithEmail(email: String, password: String): SignInOutcome = try {
+        auth.createUserWithEmailAndPassword(email.trim(), password).await()
+        SignInOutcome.Success
+    } catch (e: FirebaseAuthUserCollisionException) {
+        // The single most common real case: someone reaching for "create" when they already have
+        // an account. Saying so beats a raw "email already in use" from the SDK.
+        SignInOutcome.Failed("That email already has an account — sign in instead.")
+    } catch (e: FirebaseAuthWeakPasswordException) {
+        SignInOutcome.Failed("That password is too weak. Six characters minimum.")
+    } catch (e: FirebaseAuthInvalidCredentialsException) {
+        SignInOutcome.Failed("That email address doesn't look right.")
+    } catch (e: Exception) {
+        SignInOutcome.Failed(e.message ?: "Couldn't create the account.")
+    }
+
+    suspend fun signInWithEmail(email: String, password: String): SignInOutcome = try {
+        auth.signInWithEmailAndPassword(email.trim(), password).await()
+        SignInOutcome.Success
+    } catch (e: FirebaseAuthInvalidUserException) {
+        SignInOutcome.Failed("No account with that email. Create one instead?")
+    } catch (e: FirebaseAuthInvalidCredentialsException) {
+        // Firebase does not distinguish wrong-password from no-such-user by default, and it is
+        // right not to: telling a stranger which emails are registered is an information leak.
+        SignInOutcome.Failed("Wrong email or password.")
+    } catch (e: Exception) {
+        SignInOutcome.Failed(e.message ?: "Couldn't sign in.")
+    }
+
+    suspend fun sendPasswordReset(email: String): Result<Unit> = runCatching {
+        auth.sendPasswordResetEmail(email.trim()).await()
+    }
+
+    /* ---------------------------- phone ---------------------------- */
+
+    /**
+     * Send an SMS code. [activity] is required — Play Integrity or the reCAPTCHA fallback both
+     * need a real window to attach to.
+     *
+     * Firebase may verify silently without any SMS at all (Play Integrity on a healthy device),
+     * which is why [onVerified] exists as a separate outcome: the caller must not sit waiting for
+     * a code that will never arrive.
+     */
+    fun startPhoneVerification(
+        activity: android.app.Activity,
+        phoneE164: String,
+        onCodeSent: (verificationId: String) -> Unit,
+        onVerified: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                auth.signInWithCredential(credential)
+                    .addOnSuccessListener { onVerified() }
+                    .addOnFailureListener { onError(it.message ?: "Sign-in failed.") }
+            }
+
+            override fun onVerificationFailed(e: com.google.firebase.FirebaseException) {
+                onError(
+                    when (e) {
+                        is FirebaseAuthInvalidCredentialsException ->
+                            "That phone number doesn't look right. Include the country code."
+                        else -> e.message ?: "Couldn't send the code."
+                    }
+                )
+            }
+
+            override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
+                onCodeSent(id)
+            }
+        }
+
+        PhoneAuthProvider.verifyPhoneNumber(
+            PhoneAuthOptions.newBuilder(auth)
+                .setPhoneNumber(phoneE164)
+                .setTimeout(60L, java.util.concurrent.TimeUnit.SECONDS)
+                .setActivity(activity)
+                .setCallbacks(callbacks)
+                .build()
+        )
+    }
+
+    suspend fun confirmPhoneCode(verificationId: String, code: String): SignInOutcome = try {
+        auth.signInWithCredential(
+            PhoneAuthProvider.getCredential(verificationId, code.trim())
+        ).await()
+        SignInOutcome.Success
+    } catch (e: FirebaseAuthInvalidCredentialsException) {
+        SignInOutcome.Failed("That code isn't right.")
+    } catch (e: Exception) {
+        SignInOutcome.Failed(e.message ?: "Couldn't verify the code.")
     }
 
     /**

@@ -248,6 +248,23 @@ fun ExerciseEditorScreen(
             }
         }
 
+        /* ---- what it works ---- */
+        item {
+            MusclePicker(
+                primary = s.primaryMuscle,
+                secondary = s.secondaryMuscles,
+                onPrimary = { m -> viewModel.update { it.copy(primaryMuscle = m) } },
+                onToggleSecondary = { m ->
+                    viewModel.update {
+                        it.copy(
+                            secondaryMuscles = if (m in it.secondaryMuscles)
+                                it.secondaryMuscles - m else it.secondaryMuscles + m
+                        )
+                    }
+                }
+            )
+        }
+
         /* ---- schedule ---- */
         item {
             Card(Modifier.fillMaxWidth()) {

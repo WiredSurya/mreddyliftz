@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mreddy.liftz.data.db.ExerciseType
 import com.mreddy.liftz.data.db.SetType
 import com.mreddy.liftz.data.repo.LiftzRepository
+import com.mreddy.liftz.domain.MuscleGroup
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +33,8 @@ data class EditorState(
     val weightIncrementKg: String = "2",
     val formDescription: String = "",
     val daysOfWeek: Set<Int> = emptySet(),
+    val primaryMuscle: MuscleGroup? = null,
+    val secondaryMuscles: Set<MuscleGroup> = emptySet(),
     val saved: Boolean = false
 ) {
     /**
@@ -93,7 +96,9 @@ class ExerciseEditorViewModel(
             currentWeightKg = (e.currentWeightKg ?: 10.0).trimZeros(),
             weightIncrementKg = (e.weightIncrementKg ?: 2.0).trimZeros(),
             formDescription = e.formDescription,
-            daysOfWeek = repo.daysForExercise(id)
+            daysOfWeek = repo.daysForExercise(id),
+            primaryMuscle = e.primaryMuscle,
+            secondaryMuscles = e.secondaryMuscles.toSet()
         )
     }
 
@@ -137,7 +142,9 @@ class ExerciseEditorViewModel(
                 currentWeightKg = s.currentWeightKg.toDoubleOrNull(),
                 weightIncrementKg = s.weightIncrementKg.toDoubleOrNull(),
                 formDescription = s.formDescription,
-                daysOfWeek = s.daysOfWeek
+                daysOfWeek = s.daysOfWeek,
+                primaryMuscle = s.primaryMuscle,
+                secondaryMuscles = s.secondaryMuscles.toList()
             )
         )
         _state.value = _state.value.copy(saved = true)

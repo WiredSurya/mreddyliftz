@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 /**
  * The single place the UI talks to for data.
@@ -768,6 +769,56 @@ class LiftzRepository(private val db: LiftzDatabase) {
     }
 
     /**
+     * Turn the setup quiz's answers into actual daily goals.
+     *
+     * This is what stops the quiz being a form. Protein scales with bodyweight and intent, and
+     * calories move with the goal — numbers somebody would otherwise have to look up and type in
+     * by hand on their first day, before they know what any of the fields mean.
+     *
+     * Deliberately conservative and easily overridden: every value written here is editable in
+     * Settings, and the quiz is a starting point rather than a prescription. It is arithmetic on
+     * common guidance, not a nutrition plan.
+     */
+    suspend fun applyProfileGoals(
+        bodyWeightKg: Double?,
+        goal: com.mreddy.liftz.data.prefs.TrainingGoal?
+    ) {
+        val kg = bodyWeightKg ?: return
+        if (kg <= 25 || kg > 300) return    // a typo, not a bodyweight
+
+        val proteinPerKg = when (goal) {
+            com.mreddy.liftz.data.prefs.TrainingGoal.FAT_LOSS -> 2.2      // highest, to spare muscle in a deficit
+            com.mreddy.liftz.data.prefs.TrainingGoal.BUILD_MUSCLE -> 1.9
+            com.mreddy.liftz.data.prefs.TrainingGoal.GAIN_STRENGTH -> 1.8
+            null -> 1.8
+        }
+        // Maintenance-ish at a light activity multiplier, then nudged by intent. Not a
+        // measurement — a defensible starting number the person then adjusts against the scale.
+        val maintenance = kg * 31
+        val calories = when (goal) {
+            com.mreddy.liftz.data.prefs.TrainingGoal.FAT_LOSS -> maintenance - 400
+            com.mreddy.liftz.data.prefs.TrainingGoal.BUILD_MUSCLE -> maintenance + 300
+            else -> maintenance
+        }
+        val protein = (kg * proteinPerKg).roundToInt()
+        val fat = (kg * 0.9).roundToInt()
+        // Carbs take whatever calories are left, which is what keeps the four numbers consistent
+        // with each other instead of three guesses and a total that does not add up.
+        val carbs = ((calories - protein * 4 - fat * 9) / 4).roundToInt().coerceAtLeast(50)
+
+        val current = configDao.getGoals() ?: GoalsEntity()
+        configDao.upsertGoals(
+            current.copy(
+                proteinG = protein,
+                fatG = fat,
+                carbsG = carbs,
+                calories = calories.roundToInt(),
+                waterMl = (kg * 35).roundToInt().coerceIn(2000, 5000)
+            )
+        )
+    }
+
+    /**
      * Give the example routine's exercises their muscle groups if they do not have them.
      *
      * The 4->5 migration does this too, but a migration runs exactly once — anyone who was on a
@@ -967,7 +1018,10 @@ class LiftzRepository(private val db: LiftzDatabase) {
         val weightIncrementKg: Double? = null,
         val formDescription: String = "",
         /** java.time.DayOfWeek values, 1 = Monday. */
-        val daysOfWeek: Set<Int> = emptySet()
+        val daysOfWeek: Set<Int> = emptySet(),
+        /** What this trains, for the body map and the per-exercise diagram. */
+        val primaryMuscle: MuscleGroup? = null,
+        val secondaryMuscles: List<MuscleGroup> = emptyList()
     )
 
     /**
@@ -1001,6 +1055,11 @@ class LiftzRepository(private val db: LiftzDatabase) {
                 progressionTracked = draft.type != ExerciseType.CORE,
                 restSecondsPerSet = draft.restSecondsPerSet,
                 formDescription = draft.formDescription.trim(),
+                primaryMuscle = draft.primaryMuscle,
+                // A muscle listed as both primary and secondary would be counted twice on the
+                // body map, so the primary wins and the duplicate is dropped here rather than
+                // being handled at every read site.
+                secondaryMuscles = draft.secondaryMuscles.filter { it != draft.primaryMuscle },
                 orderIndex = exerciseDao.nextOrderIndex()
             )
         )

@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
  * a privacy policy nobody opens.
  */
 @Composable
-fun AccountCard() {
+fun AccountCard(onMoreOptions: (() -> Unit)? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -110,6 +110,11 @@ fun AccountCard() {
                         enabled = !busy,
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(if (busy) "Signing in…" else "Sign in with Google") }
+                    onMoreOptions?.let {
+                        TextButton(onClick = it, modifier = Modifier.fillMaxWidth()) {
+                            Text("Use email or phone instead")
+                        }
+                    }
                 }
 
                 is AuthState.SignedIn -> {

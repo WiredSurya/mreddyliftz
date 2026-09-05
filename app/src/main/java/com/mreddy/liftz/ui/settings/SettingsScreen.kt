@@ -381,6 +381,27 @@ fun SettingsScreen(
             }
         }
 
+        /* ---- redo setup ---- */
+        item {
+            Card {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Training setup", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Goal, experience, days per week, where you train and your weight. " +
+                            "Re-running it recalculates your macro targets; it never touches your " +
+                            "logged workouts.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { scope.launch { LiftzApp.profilePrefs().reset() } },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Redo setup") }
+                }
+            }
+        }
+
         /* ---- backup & restore ---- */
         item {
             Card {
