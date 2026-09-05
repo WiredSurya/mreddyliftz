@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy Policy — mreddyLiftz</title>
+<meta name="theme-color" content="#FBF7EF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+</head>
+<body><div class="wrap">
+<a class="back" href="./">&larr; mreddyLiftz</a>
+<h1>Privacy Policy</h1>
+<p class="updated">Last updated: 5 September 2026</p>
+
+<p>mreddyLiftz is a fitness and macro tracker that stores your data on your own phone. It has
+one optional feature that sends data off the device: signing in with Google to sync your
+training history between your own devices. Nothing else leaves your phone, and if you never
+sign in, nothing leaves it at all.</p>
+
+<table>
+  <tr><th></th><th>Signed out (default)</th><th>Signed in</th></tr>
+  <tr><td>Training data leaves the phone</td><td>No</td><td>Yes, to your own storage</td></tr>
+  <tr><td>Anyone else can read it</td><td>No</td><td>No</td></tr>
+  <tr><td>Analytics / ads / tracking</td><td>None</td><td>None</td></tr>
+  <tr><td>App works fully</td><td>Yes</td><td>Yes</td></tr>
+</table>
+
+<h2>If you never sign in</h2>
+<p>The app does not transmit anything. Your routine, workout logs, set history and daily macro
+totals live in a local database on your device and stay there. There is no analytics, no
+advertising, no crash reporting and no telemetry of any kind in this app — not disabled by
+default, simply not present.</p>
+
+<h2>If you sign in with Google</h2>
+<p>Signing in is entirely optional and exists for one purpose: so you can install the app on a
+new phone, sign in, and find your history waiting.</p>
+<p><strong>What is sent.</strong> A single snapshot of your app data — the same content the
+export feature produces: your exercises, routine, logged sets and sessions, daily macro totals
+and your goal settings. It is written to one document belonging to your account and overwritten
+each time it syncs. No previous versions are kept.</p>
+<p><strong>What Google receives.</strong> Sign-in is handled by Firebase Authentication, so
+Google receives the Google account you choose — its email address, display name and an account
+identifier. Storage is Firebase Cloud Firestore, hosted in Google's <code>asia-south1</code>
+(Mumbai) region. Google processes this data as the infrastructure provider, under Google's own
+privacy policy. The developer of this app has access to the Firebase project's administrative
+console.</p>
+<p><strong>Who else can read it.</strong> Nobody. Access rules permit an account to read and
+write only documents under its own account identifier, and deny everything else by default.
+Another signed-in user cannot reach your data. The rules are public in the
+<a href="https://github.com/WiredSurya/mreddyliftz/blob/master/firestore.rules">source
+repository</a>.</p>
+<p><strong>What is never sent.</strong> Your device's theme, chosen backup folder and sync
+bookkeeping stay local. There is still no analytics, advertising, tracking or crash reporting.</p>
+
+<h2>Deleting your data</h2>
+<ul>
+  <li><strong>On the phone:</strong> uninstalling the app removes its local database.</li>
+  <li><strong>In the cloud:</strong> Settings → Account → <strong>Delete cloud copy</strong>.
+      This erases the stored snapshot immediately and leaves your phone's data untouched.</li>
+  <li><strong>Signing out does not delete anything</strong>, in either place. It stops syncing.</li>
+</ul>
+<p>To remove the Google account record itself, email the address below.</p>
+
+<h2>Permissions</h2>
+<ul>
+  <li><code>INTERNET</code> — cloud sync only, used solely when signed in and syncing.</li>
+  <li><code>ACCESS_NETWORK_STATE</code> — to show the offline indicator. Read-only; grants no
+      ability to transmit anything.</li>
+  <li><code>VIBRATE</code> — the buzz when you finish a set.</li>
+</ul>
+
+<h2>Android backup and file export</h2>
+<p>If you have backup to a Google account enabled in your phone's own settings, Android's
+operating system may include this app's local data in that backup, as it does for most apps.
+That transfer is controlled by your phone's settings and Google's backup service, not by this
+app. Separately, you can export your data to a file through Android's file picker; that happens
+only when you choose to, and the file goes exactly where you tell the picker to put it.</p>
+
+<h2>Children's privacy</h2>
+<p>The app is not directed at children and has no age gate. Signed out it collects nothing from
+anyone. Signed in, it requires a Google account, which carries Google's own age requirements.</p>
+
+<h2>Changes</h2>
+<p>If the app changes what it collects or transmits, this page is updated first and the date at
+the top changes, as happened on 5 September 2026 when optional sign-in was added.</p>
+
+<footer>
+Questions: <a href="mailto:suryapatrimath@gmail.com">suryapatrimath@gmail.com</a><br>
+<a href="terms.html">Terms of Service</a> &middot;
+<a href="https://github.com/WiredSurya/mreddyliftz">Source on GitHub</a>
+</footer>
+</div></body></html>
