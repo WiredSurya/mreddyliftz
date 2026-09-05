@@ -121,6 +121,14 @@ fun SettingsScreen(
             Text("Settings", style = MaterialTheme.typography.headlineSmall)
         }
 
+        /* ---- google account & cloud sync ----
+         * FIRST, deliberately. This started out below the rep increments, the goals, the theme
+         * picker and the example routine, which meant the one feature that protects your data
+         * from a lost phone was invisible without scrolling past five things nobody opens twice.
+         * Signing in is the only primary action on this screen; everything below it is tuning.
+         */
+        item { AccountCard() }
+
         message?.let { text ->
             item {
                 Card { Text(text, Modifier.padding(12.dp), fontSize = 13.sp) }
@@ -372,9 +380,6 @@ fun SettingsScreen(
                 }
             }
         }
-
-        /* ---- google account & cloud sync ---- */
-        item { AccountCard() }
 
         /* ---- backup & restore ---- */
         item {
