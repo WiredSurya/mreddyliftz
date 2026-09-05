@@ -1,12 +1,20 @@
 {
   "hosting": {
     "public": "docs",
-    "ignore": ["**/.*", "**/*.md", "**/node_modules/**"],
-    "cleanUrls": true,
+    "ignore": [
+      "**/.*",
+      "**/*.md",
+      "**/node_modules/**"
+    ],
     "headers": [
       {
         "source": "**/*.@(html|css)",
-        "headers": [{ "key": "Cache-Control", "value": "max-age=600" }]
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=600"
+          }
+        ]
       }
     ]
   }
