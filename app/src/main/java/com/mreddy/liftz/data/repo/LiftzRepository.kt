@@ -716,14 +716,16 @@ class LiftzRepository(private val db: LiftzDatabase) {
     }
 
     suspend fun insights(today: LocalDate = LocalDate.now()): TrainingInsights {
-        val sessions = sessionDao.allCompleted()
+        // All sessions with sets, not just finished ones — otherwise nothing shows until you
+        // complete a whole exercise, which is a long wait to see your first number.
+        val sessions = sessionDao.allWithSets().filter { it.orderedSets.isNotEmpty() }
 
         val timings = sessions.map { SetTiming.of(
             it.orderedSets.map { st -> SetTiming.TimedSet(st.setIndex, st.reps, st.startedAtMs, st.durationMs) }
         ) }
         val timed = timings.filter { it.hasData }
 
-        val sessionDurations = sessions.mapNotNull {
+        val sessionDurations = sessions.filter { it.session.finishedAtMs > 0 }.mapNotNull {
             val d = it.session.finishedAtMs - it.session.startedAtMs
             // A session that was never properly finished, or one spanning a clock change, would
             // otherwise contribute a wild figure to the average.

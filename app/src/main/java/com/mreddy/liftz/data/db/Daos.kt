@@ -203,7 +203,19 @@ interface SessionDao {
     @Query("SELECT * FROM exercise_sessions WHERE epochDay >= :fromDay ORDER BY epochDay DESC")
     suspend fun since(fromDay: Long): List<SessionWithSets>
 
-    /** Every completed session with its sets, newest first — the input to the stats page. */
+    /**
+     * Every session with its sets, newest first — the input to the stats page.
+     *
+     * Deliberately NOT filtered to completed sessions. A set you performed is a set you
+     * performed, and gating volume and timing behind finishing the whole exercise meant the
+     * training stats stayed invisible to anyone mid-session. Stats that need a finish time
+     * (average session length) filter for it themselves.
+     */
+    @Transaction
+    @Query("SELECT * FROM exercise_sessions ORDER BY epochDay DESC LIMIT :limit")
+    suspend fun allWithSets(limit: Int = 500): List<SessionWithSets>
+
+    /** Every completed session with its sets, newest first. */
     @Transaction
     @Query("SELECT * FROM exercise_sessions WHERE completed = 1 ORDER BY epochDay DESC LIMIT :limit")
     suspend fun allCompleted(limit: Int = 500): List<SessionWithSets>

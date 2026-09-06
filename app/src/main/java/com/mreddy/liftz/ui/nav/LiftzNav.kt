@@ -219,6 +219,7 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                         PAGE_COACH -> CoachScreen()
 
                         PAGE_PROGRESS -> StatsScreen(
+                            isActive = pagerState.currentPage == PAGE_PROGRESS,
                             onExerciseClick = { exerciseId ->
                                 navController.navigate(
                                     Routes.exercise(exerciseId, today.toEpochDay())
@@ -227,6 +228,7 @@ fun LiftzNavHost(navController: NavHostController = rememberNavController()) {
                         )
 
                         PAGE_PROFILE -> ProfileScreen(
+                            isActive = pagerState.currentPage == PAGE_PROFILE,
                             onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                             onSignIn = { navController.navigate(Routes.SIGN_IN) },
                             onOpenStats = {

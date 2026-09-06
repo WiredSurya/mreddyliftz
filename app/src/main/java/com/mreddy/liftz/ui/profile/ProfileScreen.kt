@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -57,6 +58,15 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun ProfileScreen(
+    /**
+     * True while this page is the one on screen.
+     *
+     * The tabs are pages of a pager inside ONE nav destination, so these ViewModels are built
+     * once and never rebuilt when you swipe back — a one-shot load in init would show numbers
+     * from whenever the app started. Reloading on becoming visible is what makes a set logged
+     * thirty seconds ago actually appear.
+     */
+    isActive: Boolean,
     onOpenSettings: () -> Unit,
     onSignIn: () -> Unit,
     onOpenStats: () -> Unit,
@@ -67,6 +77,7 @@ fun ProfileScreen(
         factory = factoryOf { ProfileViewModel(LiftzApp.repo()) }
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(isActive) { if (isActive) viewModel.reload() }
     val authState by LiftzApp.auth().state()
         .collectAsState(initial = LiftzApp.auth().currentState())
 

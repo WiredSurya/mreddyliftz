@@ -28,8 +28,8 @@ android {
         minSdk = 26          // Glance widgets + adaptive icons + java.time all fine from 26
         targetSdk = 35
         // Play requires this to INCREASE on every upload; a repeat is rejected outright.
-        versionCode = 5
-        versionName = "1.3.0"
+        versionCode = 6
+        versionName = "1.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
